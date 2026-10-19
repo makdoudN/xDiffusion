@@ -1,0 +1,15 @@
+{
+  "src/xdiffusion/__init__.py": "e9d3c4841f6adc47228597a26964e67131248432db836eb0a785698e4f0eb63f",
+  "src/xdiffusion/benchmark.py": "d41c0c7b5e4e93a85d045fd7fb82b86402552b1510311fc0a05f821948692459",
+  "src/xdiffusion/common.py": "e66f1af9fb744656efd48fbb89cf49a510217d5129914476144ee31cfea5b07c",
+  "src/xdiffusion/compare.py": "ecc6c9b2e9281112df73e93deee4086d0319ab2c452b1593b8c048cae33f987f",
+  "src/xdiffusion/data.py": "1035fb0d97525ae0fb0387d6162d7301c358de72401fc50c8ecdfaae7765da44",
+  "src/xdiffusion/diffusion.py": "62e220bc2f9db270237d73d7a1f9f540507f58101b0e987ee3c71cbfd09d4f19",
+  "src/xdiffusion/evaluate.py": "32dd7e007c8e7414a52dc45462aa5719eb8aa45d57ad9c0f5f76616fb04f5bf4",
+  "src/xdiffusion/metrics.py": "5b3ab41429066135325f3e96b498eab96a9e3e95296acbe06896fa67f2dbaddf",
+  "src/xdiffusion/models.py": "37f9b8563533942f7384a48abe8c824c00f8d99e3e99529f7e802c3836a740b6",
+  "src/xdiffusion/sample.py": "df10b7db2d522aa366dc198eee396b55aef72ee9802fa754e0f21258079db8f3",
+  "src/xdiffusion/train.py": "d5c75009dfbd0f572c1c6d5275b2a818e4720ca682104372ca841a81a8b15cf4",
+  "pyproject.toml": "cc230692936f8cf069cd67cb3da62186bc8ffcb10925e3bba78a7789a1f572c5",
+  "uv.lock": "5e0189010d5be2cd92684c545cf889bdf5bd6e183ad44d2c5fca2ee1fd360066"
+}

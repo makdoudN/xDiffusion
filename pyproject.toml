@@ -1,0 +1,34 @@
+[project]
+name = "xdiffusion"
+version = "0.1.0"
+description = "Small, readable diffusion models, from 2D points to CIFAR-10."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "einops>=0.8",
+    "jaxtyping>=0.3",
+    "matplotlib>=3.9",
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "tyro>=0.9",
+]
+
+[dependency-groups]
+dev = ["beartype>=0.19", "pytest>=8", "ruff>=0.11"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--jaxtyping-packages=xdiffusion,beartype.beartype"
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["F722"]
+# Leading spaces in jaxtyping shapes make them unambiguously non-Python strings.
+# This preserves F821 (real undefined-name errors) without per-file suppression.

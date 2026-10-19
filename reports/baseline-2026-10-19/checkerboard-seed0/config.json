@@ -1,0 +1,37 @@
+{
+  "data": {
+    "task": "checkerboard",
+    "root": "data",
+    "train_size": 20000,
+    "val_size": 4096,
+    "seed": 1234
+  },
+  "model": {
+    "width": 128,
+    "depth": 3,
+    "time_dim": 32
+  },
+  "diffusion": {
+    "steps": 200
+  },
+  "sampling": {
+    "samples": 512,
+    "batch_size": 128,
+    "sampler": "ddim",
+    "steps": 50,
+    "seed": 0
+  },
+  "out_dir": "out/points/checkerboard-seed0",
+  "steps": 1500,
+  "batch_size": 256,
+  "lr": 0.001,
+  "warmup_steps": 100,
+  "weight_decay": 0.0001,
+  "grad_clip": 1.0,
+  "ema_decay": 0.995,
+  "eval_interval": 500,
+  "log_interval": 100,
+  "seed": 0,
+  "device": "auto",
+  "threads": 4
+}
