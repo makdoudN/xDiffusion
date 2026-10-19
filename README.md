@@ -1,181 +1,312 @@
 # xDiffusion
 
-Small, readable diffusion models in PyTorch, in the spirit of nanoGPT and the
-neighboring xByteGPT repository. Learn the same noise-prediction algorithm on
-2D points, generated images, and real image datasets.
+### Diffusion models, small enough to understand.
 
-**PyTorch · jaxtyping · einops · tyro.** Plain modules and dataclasses, one
-training loop, no trainer framework, registries, or configuration inheritance.
+One PyTorch training loop. Eight benchmark tasks. Start with 2D points,
+then use the same diffusion process to generate images.
 
-## Quickstart
+[![Checks](https://github.com/makdoudN/xDiffusion/actions/workflows/check.yml/badge.svg)](https://github.com/makdoudN/xDiffusion/actions/workflows/check.yml) [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-3776AB)](pyproject.toml) [![PyTorch](https://img.shields.io/badge/PyTorch-2.7.1-EE4C2C)](pyproject.toml)
+
+**[Get started](#get-started) · [Examples](#try-an-experiment) · [Benchmarks](#a-curriculum-from-points-to-pixels) · [Code](#a-small-codebase-you-can-read) · [Results](reports/baseline-2026-10-19/README.md) · [The math](doc/companion.md)**
+
+<table>
+  <tr>
+    <th>2D geometry · 55K parameters</th>
+    <th>Handwritten digits · 180K parameters</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="reports/baseline-2026-10-19/ring8-seed0/samples.png" alt="Eight Gaussian modes: generated orange points overlaid on blue reference points" width="420"></td>
+    <td align="center"><img src="reports/baseline-2026-10-19/mnist-5000-seed0/samples.png" alt="64 generated MNIST samples from a small U-Net trained for 5000 optimizer steps" width="420"></td>
+  </tr>
+  <tr>
+    <td align="center">Residual MLP · 1,500 training steps</td>
+    <td align="center">Small U-Net · 5,000 training steps</td>
+  </tr>
+</table>
+
+Actual samples from the included baseline runs, using 50-step DDIM sampling.
+The ring is still blurred between modes, and some digits are malformed.
+Configurations, learning curves, and sample grids are [included in the repo](reports/baseline-2026-10-19/README.md).
+
+## Why this repo?
+
+Diffusion is easier to understand when you can see every moving part. A 2D
+scatter plot makes missing modes and blurry boundaries obvious; a small image
+dataset then shows what changes when the denoiser needs spatial structure.
+
+xDiffusion follows the spirit of [nanoGPT](https://github.com/karpathy/nanoGPT)
+and [xByteGPT](https://github.com/makdoudN/xByteGPT): keep the implementation
+small, make the experiment explicit, and give each abstraction a reason to exist.
+
+- **Read the whole algorithm.** The cosine schedule, training objective, DDPM,
+  and DDIM fit in [one 103-line module](src/xdiffusion/diffusion.py).
+- **See what tensors mean.** Jaxtyping names shapes and dtypes; einops names axes
+  when rearranging data. Tests check the annotations at runtime.
+- **Change an experiment from the CLI.** Tyro turns ordinary dataclasses into
+  flags such as `--model.width 64` and `--diffusion.steps 100`.
+- **Compare runs with evidence.** Fixed validation noise, separate data/model
+  seeds, reference baselines, checkpoint selection, and saved sample plots.
+
+The code is intended for learning and small experiments. It uses single-device
+float32 training on **CPU or CUDA**, with AdamW, gradient clipping, and EMA.
+
+## Get started
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
 
 ```bash
-uv sync
-uv run -m xdiffusion.train                         # eight Gaussian modes, ~3000 steps
-uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt
-uv run -m xdiffusion.evaluate --checkpoint out/ring8/ckpt.pt  # held-out test data
-uv run pytest
-uv run ruff check .
+git clone https://github.com/makdoudN/xDiffusion.git
+cd xDiffusion
+uv sync --locked
+
+# Learn eight Gaussian modes. No dataset download needed.
+uv run -m xdiffusion.train
 ```
 
-Every command takes `--help`. Dataclass fields become flags such as
-`--model.width 64` or `--diffusion.steps 100`. Use a fresh `--out-dir` for each
-run; existing runs are protected from accidental overwrite.
+Open **`out/ring8/samples.png`** to see generated points overlaid on validation
+data. The run also saves a checkpoint, configuration, learning history, and
+metrics. Training picks CUDA when available and otherwise uses CPU.
 
-[Measured runs and sample plots](reports/baseline-2026-10-19/README.md) include
-three seeds on each point task, short image runs, and explicit limits on what
-those runs establish.
+Generate a fresh sample set, then score the checkpoint on held-out test data:
 
-For a quick CPU check:
+```bash
+uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt
+uv run -m xdiffusion.evaluate --checkpoint out/ring8/ckpt.pt
+```
+
+These write to `out/samples/` and `out/evaluation/`, respectively. Every command
+accepts `--help`. Choose a fresh `--out-dir` when training again; existing runs
+are protected from accidental overwrite.
+
+For a quick installation check on CPU:
 
 ```bash
 uv run -m xdiffusion.train --device cpu --steps 20 --model.width 32 \
   --sampling.samples 64 --out-dir out/smoke
 ```
 
-## Benchmark curriculum
+Twenty steps exercise the pipeline; use the longer budgets below to learn the
+distributions. Python 3.12–3.13 is supported. The lockfile pairs PyTorch 2.7.1
+with torchvision 0.22.1, including support for older CUDA GPUs such as the GTX 1080.
 
-| Task | Data | What it exercises | Denoiser | Preset steps |
-|---|---|---|---|---:|
-| `gaussian` | translated anisotropic 2D normal | mean and covariance | MLP | 1,500 |
-| `ring8` | eight narrow Gaussian modes | mode coverage and concentration | MLP | 3,000 |
-| `moons` | two noisy curved manifolds | nonlinear geometry | MLP | 3,000 |
-| `checkerboard` | eight occupied squares | sharp boundaries and empty regions | MLP | 5,000 |
-| `shapes` | 16×16 circles and squares | spatial structure, translation, size | U-Net | 5,000 |
-| `mnist` | 28×28 handwritten digits | real multimodal grayscale images | U-Net | 20,000 |
-| `fashion` | 28×28 clothing | texture and more varied silhouettes | U-Net | 30,000 |
-| `cifar10` | 32×32 color photographs | natural images and color | U-Net | 100,000 |
+## Try an experiment
 
-Difficulty is a teaching progression, not a measured ranking. Presets are
-starting budgets, not equal-compute experiments or published quality targets.
-CIFAR-10 is intentionally a harder ceiling for this small attention-free U-Net.
+### Change the geometry
+
+Swap the dataset while keeping the objective, optimizer, and denoiser the same:
 
 ```bash
-# Offline suite: four point distributions + generated shapes, three model seeds.
+uv run -m xdiffusion.train --data.task moons --out-dir out/moons
+uv run -m xdiffusion.train --data.task checkerboard --steps 5000 \
+  --out-dir out/checkerboard
+```
+
+Inspect the [moons](reports/baseline-2026-10-19/moons-seed0/samples.png) and
+[checkerboard](reports/baseline-2026-10-19/checkerboard-seed0/samples.png)
+baseline plots. Look for curved structure, empty regions, and boundary sharpness.
+
+### Move from coordinates to pixels
+
+Start with generated circles and squares, then try handwritten digits:
+
+```bash
+# Synthetic 16×16 images: stays entirely offline.
+uv run -m xdiffusion.train --data.task shapes --model.width 32 \
+  --batch-size 64 --lr 3e-4 --steps 5000 --out-dir out/shapes
+
+# Download MNIST once, then reproduce the 5,000-step example above.
+uv run -m xdiffusion.data --task mnist
+uv run -m xdiffusion.train --data.task mnist --model.width 32 \
+  --batch-size 64 --lr 3e-4 --steps 5000 --out-dir out/mnist
+```
+
+The data shape selects the denoiser: an MLP for coordinates, a U-Net for images.
+The diffusion process and training loop stay the same. MNIST's full curriculum
+preset is 20,000 steps; the 5,000-step example is a smaller starting experiment.
+
+<table>
+  <tr>
+    <th>Generated shapes · 5,000 steps</th>
+    <th>Fashion-MNIST · 1,000 steps</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="reports/baseline-2026-10-19/shapes-5000-seed0/samples.png" alt="Generated 16 by 16 circles and squares with varied position, size, and brightness" width="340"></td>
+    <td align="center"><img src="reports/baseline-2026-10-19/fashion-seed0/samples.png" alt="Early Fashion-MNIST samples showing clothing silhouettes and visible artifacts after 1000 training steps" width="340"></td>
+  </tr>
+</table>
+
+The short Fashion-MNIST run shows coarse silhouettes and visible artifacts.
+To train on it, download with `--task fashion`, then use the `fashion` benchmark
+preset below. Image examples are unconditional: labels are ignored.
+
+### Trade sampling steps for speed
+
+The same checkpoint supports deterministic DDIM and stochastic DDPM:
+
+```bash
+# DDIM: fewer network evaluations.
+uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt \
+  --sampling.steps 20 --out-dir out/ddim20
+
+# DDPM: use every forward noise level, 200 by default.
+uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt \
+  --sampling.sampler ddpm --sampling.steps None --out-dir out/ddpm
+```
+
+DDIM defaults to 50 reverse steps. Its path is deterministic for a fixed initial
+noise tensor; change `--sampling.seed` to draw different samples. DDPM requires
+all forward levels. Image clean-data estimates are clipped to [-1, 1]; point
+coordinates stay unclipped. Sampling steps cannot exceed the checkpoint's
+forward noise levels.
+
+## A curriculum from points to pixels
+
+| Task | Data | What to inspect | Denoiser | Preset steps |
+|---|---|---|---|---:|
+| `gaussian` | Anisotropic 2D normal | Center, scale, covariance | MLP | 1,500 |
+| `ring8` | Eight narrow Gaussian modes | Mode coverage and concentration | MLP | 3,000 |
+| `moons` | Two noisy curved manifolds | Nonlinear geometry | MLP | 3,000 |
+| `checkerboard` | Eight occupied squares | Boundaries and empty regions | MLP | 5,000 |
+| `shapes` | 16×16 circles and squares | Position, size, brightness | U-Net | 5,000 |
+| `mnist` | 28×28 handwritten digits | Recognizable multimodal images | U-Net | 20,000 |
+| `fashion` | 28×28 clothing | Silhouettes and texture | U-Net | 30,000 |
+| `cifar10` | 32×32 color photographs | Color and natural-image structure | U-Net | 100,000 |
+
+This is a teaching progression. Presets are starting budgets, rather than
+claims of convergence or equal-compute comparisons. CIFAR-10 is a harder target
+for this small U-Net; its real-data training result is still pending. Seven
+other tasks have [measured GPU runs](reports/baseline-2026-10-19/README.md).
+
+```bash
+# Default offline suite: four point tasks + shapes, three model seeds each.
 uv run -m xdiffusion.benchmark
 
-# Shorter point-only comparison.
+# A smaller multi-seed point suite.
 uv run -m xdiffusion.benchmark --tasks gaussian ring8 moons checkerboard \
-  --seeds 0 1 2 --steps 1000 --out-dir out/points
+  --seeds 0 1 2 --steps 1500 --out-dir out/points
 
-# Download once. Training never downloads data implicitly.
-uv run -m xdiffusion.data --task mnist
+# Real image datasets must be downloaded before benchmarking.
 uv run -m xdiffusion.data --task fashion
 uv run -m xdiffusion.data --task cifar10
+uv run -m xdiffusion.benchmark --tasks mnist fashion cifar10 \
+  --seeds 0 --out-dir out/images
 
-uv run -m xdiffusion.train --data.task mnist --model.width 32 \
-  --batch-size 64 --lr 3e-4 --steps 20000 --out-dir out/mnist
-uv run -m xdiffusion.benchmark --tasks mnist fashion cifar10 --seeds 0 \
-  --out-dir out/images
-
+# Inspect individual runs side by side.
 uv run -m xdiffusion.compare out/points/ring8-seed0 out/points/ring8-seed1
 ```
 
-`benchmark.py` contains the complete preset table. Synthetic train/val/test
-sets use independent fixed seeds. Real images reserve 5,000 examples from the
-official training set for validation, using a fixed permutation. The official
-test set is used only by `evaluate --split test` (the evaluation CLI default).
-Labels are ignored: all models are unconditional. Image pixels are in [-1, 1];
-2D coordinates retain their natural scale. There is no augmentation.
+The image suite also needs the MNIST download from the earlier example.
+[benchmark.py](src/xdiffusion/benchmark.py) contains the complete preset table.
+A different model seed changes initialization and training randomness; the
+independent data seed keeps split membership fixed.
 
-## Read the code
+### Measured baseline
+
+GTX 1080, float32, 1,500 training steps per point task, three model seeds.
+SWD is sliced Wasserstein-1 distance; lower is better **within the same task**.
+The reference column compares two independent held-out subsets.
+
+| Task | Model SWD ↓, mean ± sd | Reference SWD | Standard-normal baseline |
+|---|---:|---:|---:|
+| Gaussian | **0.0229 ± 0.0025** | 0.0149 | 0.7479 |
+| Ring8 | **0.1030 ± 0.0037** | 0.0538 | 0.2967 |
+| Moons | **0.0530 ± 0.0041** | 0.0376 | 0.4128 |
+| Checkerboard | **0.0516 ± 0.0016** | 0.0398 | 0.3291 |
+
+[The full report](reports/baseline-2026-10-19/README.md) includes 17 runs across
+seven tasks, exact configurations, image results, timing, and sample grids.
+For images, SWD measures pixel-space similarity. Inspect the grids alongside
+it; it does not measure perceptual quality or replace FID.
+
+## A small codebase you can read
 
 ```text
-src/xdiffusion/
-  data.py        synthetic distributions, torchvision splits, download CLI
-  models.py      sinusoidal time features, residual MLP, small U-Net
-  diffusion.py   cosine noise schedule, noise MSE, DDPM and DDIM sampling
-  train.py       AdamW, warmup/cosine LR, gradient clipping, EMA, validation
-  sample.py      bounded-memory sampling and checkpoint-to-plot CLI
-  metrics.py     fixed-noise validation and sliced Wasserstein distance
-  evaluate.py    held-out scoring, reference baselines, generation timing
-  benchmark.py   task presets and sequential multi-seed runs
-  compare.py     per-run table and mean ± standard deviation
-  common.py      device, checkpoints, JSON, sample plots
-tests/           equations, shapes, splits, metrics, end-to-end runs
-doc/companion.md the algorithm and measurement explained
+xDiffusion/
+├── src/xdiffusion/
+│   ├── diffusion.py   Cosine schedule, noise objective, DDPM and DDIM
+│   ├── models.py      Sinusoidal time features, residual MLP, small U-Net
+│   ├── train.py       One explicit training loop, EMA, best checkpoint
+│   ├── data.py        Synthetic generators, image splits, download CLI
+│   ├── sample.py      Checkpoint → points or image grid
+│   ├── metrics.py     Fixed-noise MSE and sliced Wasserstein distance
+│   ├── evaluate.py    Held-out scores, baselines, generation timing
+│   ├── benchmark.py   Task presets and sequential multi-seed runs
+│   ├── compare.py     Per-run tables and aggregate statistics
+│   └── common.py      Device selection, serialization, plotting
+├── tests/             Equations, tensor shapes, splits, full pipeline
+├── doc/companion.md   Algorithm and measurement, from first principles
+├── reports/           Measured baselines and actual sample images
+└── pyproject.toml     Dependencies, shape-checking tests, lint settings
 ```
 
-Both models implement one contract:
+A useful reading order is [the diffusion process](src/xdiffusion/diffusion.py),
+[the two denoisers](src/xdiffusion/models.py), then
+[the training loop](src/xdiffusion/train.py). Read
+[the companion](doc/companion.md) alongside the code for the equations and the
+point model's high-noise identity boundary.
+
+Both denoisers implement one contract:
 
 ```python
 model(noisy: Float[Tensor, "batch *shape"],
       time: Float[Tensor, "batch"]) -> Float[Tensor, "batch *shape"]
 ```
 
-`time` is t/T. The model predicts the Gaussian noise added to clean data.
-`shape` is `(2,)` for points or `(channels, height, width)` for images.
-`make_model` chooses the MLP or U-Net from that shape. Read
-[the companion](doc/companion.md) for the equations and design decisions.
+`time` is t/T; the output predicts the Gaussian noise added to clean data.
+`shape` is `(2,)` for points or `(channels, height, width)` for images. The U-Net
+has two spatial resolutions, time-conditioned residual blocks, GroupNorm, and
+a skip connection. `model.depth` controls the MLP only.
 
-Tensor-facing functions carry jaxtyping annotations. Pytest checks shapes and
-dtypes at runtime through jaxtyping + beartype; training pays no annotation
-checking cost. Einops names axes when rearranging data. Tyro exposes nested
-dataclass configuration without config files or `exec`.
+To add a distribution, extend [data.py](src/xdiffusion/data.py) and add a budget
+in [benchmark.py](src/xdiffusion/benchmark.py). To try a different denoiser,
+preserve `(noisy, time) → noise` and update `make_model`. Keep splits and
+sampling settings fixed when comparing architectures.
 
-## Measurements and artifacts
+## What a run saves
 
-Each training run writes:
+| Artifact | Contents |
+|---|---|
+| `config.json` | Full configuration, data seed, and model seed |
+| `history.json` | Fixed validation noise MSE and accumulated training time |
+| `ckpt.pt` | Best EMA weights, configs, input shape, and selected training step |
+| `summary.json` | Scores, parameter count, throughput, sampler settings, hardware and versions |
+| `samples.pt` / `samples.png` | Generated tensors and a scatter plot or image grid |
 
-- `config.json`: full settings, including independent data and model seeds.
-- `history.json`: fixed validation noise MSE and accumulated training time.
-- `ckpt.pt`: EMA weights with the lowest validation noise MSE, model/data/noise
-  configs, data shape, and training step. Inference checkpoint, without optimizer
-  state; training resumption is not implemented.
-- `summary.json`: validation scores, parameter count, training examples/s,
-  generation samples/s, sampler settings, Python/PyTorch versions and hardware.
-- `samples.pt` and `samples.png`: generated points or image grid from that checkpoint.
+Checkpoint selection uses validation noise MSE. Synthetic splits are generated
+with independent fixed seeds. Image datasets reserve 5,000 official training
+examples for validation; `evaluate` defaults to the untouched official test
+split. Pixels are normalized to [-1, 1], without augmentation.
 
-**Noise MSE** measures the denoising objective on fixed validation data, times,
-and noise. It is not a likelihood or a direct sample-quality score. Checkpoint
-selection uses this metric; final generation uses the chosen EMA checkpoint.
+Noise MSE measures denoising accuracy. SWD compares 128 fixed random projections
+of generated and held-out samples. The saved scores include both a held-out
+reference comparison and a standard-normal baseline to put the distance in
+context. Neither metric alone establishes good samples.
 
-**SWD** is sliced Wasserstein-1 distance: project generated and held-out data
-onto 128 fixed random unit directions, sort, and average absolute differences.
-Lower is better within the same task and evaluation settings. `reference_swd`
-compares two disjoint held-out subsets to expose finite-sample variation.
-`gaussian_swd` scores an untrained standard-normal generator as a baseline.
-All three use equal sample counts and the same projection directions.
+Training throughput excludes validation and checkpoint writes. Generation is
+warmed up and synchronized on CUDA, including transfer of samples to CPU.
+Compare speed on the same hardware and sampling settings. Seeds make runs
+repeatable within an environment; cross-device bitwise identity is not promised.
 
-For images SWD runs in **pixel space**. It is a cheap diagnostic, not FID or a
-measure of perceptual quality. Inspect sample grids. Scores across different
-datasets are not comparable; even image SWD can miss semantic failures.
+Inference checkpoints contain no optimizer state, so training resumption is
+not implemented. The project keeps its focus on small unconditional models;
+DDP, latent autoencoders, guidance, learned variance, and mixed precision are
+outside the current scope.
 
-Training timing includes batch selection, transfers, forward/backward, AdamW,
-EMA, and logging; it excludes validation and checkpoint writes. Generation is
-warmed up, synchronized on CUDA, and includes copying samples to CPU. Compare
-speed only on the same machine, batch size, and sampler settings. Seeds repeat
-within a given environment; bitwise cross-device reproducibility is not promised.
-
-## Sampling choices
-
-The default is deterministic DDIM with 50 reverse steps. The initial Gaussian
-still depends on the sampling seed. DDPM uses every forward noise level and
-adds posterior noise on all but the final transition:
+## Development
 
 ```bash
-uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt \
-  --sampling.sampler ddpm --sampling.steps None --out-dir out/ddpm
-uv run -m xdiffusion.sample --checkpoint out/ring8/ckpt.pt \
-  --sampling.steps 20 --out-dir out/ddim20
+uv run pytest                     # 42 tests, with runtime shape/dtype checks
+uv run ruff check .
+uv run ruff format --check .
+uv build
 ```
 
-Image predictions are clipped to [-1, 1] during sampling; point predictions
-are not clipped. Sampling steps must be <= the checkpoint's diffusion steps.
-
-## Scope
-
-Single-device float32 training on CPU or CUDA. No DDP, latent autoencoder,
-classifier-free guidance, learned variance, or mixed-precision machinery.
-The U-Net has two spatial resolutions, residual blocks with time conditioning,
-GroupNorm, and a skip connection. `model.depth` controls only the MLP.
-
-Python 3.12–3.13; the lockfile pins dependencies. PyTorch 2.7.1 and torchvision
-0.22.1 are paired deliberately, including CUDA support for this machine's GTX
-1080 (Pascal). `uv sync` uses the standard PyPI wheels.
+Jaxtyping + beartype checks tensor contracts during pytest. Normal training
+runs do not enable the checking hook. GitHub Actions runs the test and lint
+checks on pushes and pull requests.
 
 ## References
 
-- [DDPM — Ho et al.](https://arxiv.org/abs/2006.11239): noise-prediction training and reverse diffusion.
-- [Improved DDPM — Nichol & Dhariwal](https://arxiv.org/abs/2102.09672): cosine noise schedule.
-- [DDIM — Song et al.](https://arxiv.org/abs/2010.02502): deterministic sampling with skipped noise levels.
+- [Denoising Diffusion Probabilistic Models — Ho et al.](https://arxiv.org/abs/2006.11239)
+- [Improved Denoising Diffusion Probabilistic Models — Nichol & Dhariwal](https://arxiv.org/abs/2102.09672)
+- [Denoising Diffusion Implicit Models — Song et al.](https://arxiv.org/abs/2010.02502)
