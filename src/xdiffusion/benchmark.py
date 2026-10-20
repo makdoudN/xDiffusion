@@ -9,7 +9,6 @@ from xdiffusion.common import write_json
 from xdiffusion.compare import print_results
 from xdiffusion.data import IMAGE_TASKS, POINT_TASKS, DataConfig, Task, load_data
 from xdiffusion.models import ModelConfig
-from xdiffusion.sample import SamplingConfig
 from xdiffusion.train import TrainConfig
 from xdiffusion.train import main as train
 
@@ -61,7 +60,9 @@ def main(cfg: BenchmarkConfig) -> None:
             run_cfg = TrainConfig(
                 data=DataConfig(task=task, root=cfg.data_root),
                 model=ModelConfig(width=width),
-                sampling=SamplingConfig(samples=cfg.samples, steps=cfg.sampling_steps),
+                family="diffusion",
+                samples=cfg.samples,
+                sampling_steps=cfg.sampling_steps,
                 steps=steps if cfg.steps is None else cfg.steps,
                 batch_size=batch,
                 lr=lr,

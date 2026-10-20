@@ -1,3 +1,5 @@
+import hashlib
+import json
 import shutil
 from dataclasses import replace
 
@@ -5,8 +7,11 @@ import pytest
 import torch
 
 from xdiffusion.data import DataConfig
-from xdiffusion.experiment import ExperimentConfig, build_model, generate, load_experiment, main
 from xdiffusion.models import ModelConfig
+from xdiffusion.run import TrainConfig as ExperimentConfig
+from xdiffusion.run import build_model, generate
+from xdiffusion.run import load_run as load_experiment
+from xdiffusion.train import main
 
 
 def tiny_config(path, family, task="ring8"):
@@ -41,8 +46,25 @@ def test_each_family_trains_saves_and_samples_its_own_checkpoint(tmp_path, famil
     assert torch.isfinite(generated).all()
     assert summary["family"] == family and summary["steps"] == 4
     assert summary["train_s"] > 0
+    checkpoint = torch.load(tmp_path / "ckpt.pt", weights_only=True)
+    assert checkpoint["schema_version"] == 2
+    assert checkpoint["optimizer_recipe"]["generator"]["weight_decay"] == 1e-4
+    hashes = json.loads((tmp_path / "source-sha256.json").read_text())
+    assert hashes == checkpoint["source_sha256"]
+    from pathlib import Path
+
+    assert hashes["train.py"] == hashlib.sha256(Path("src/xdiffusion/train.py").read_bytes()).hexdigest()
+    history = json.loads((tmp_path / "history.json").read_text())[-1]
+    assert history["grad_norm"] >= 0 and history["lr"] > 0
     if family == "priming":
         assert (tmp_path / "primed.pt").exists()
+        assert "mmd_surrogate" in history and history["stage"] == "post"
+    elif family == "vae":
+        assert history["objective"] == pytest.approx(history["reconstruction_nll"] + cfg.beta * history["kl"])
+    elif family == "gan":
+        assert history["r1_applied"] and history["r1_penalty"] > 0
+        assert history["discriminator_lr"] == cfg.lr
+        assert checkpoint["optimizer_recipe"]["discriminator"]["weight_decay"] == 0.01
 
 
 def test_flow_backbone_does_not_apply_the_epsilon_identity_boundary(tmp_path):
@@ -75,12 +97,12 @@ def test_resume_restores_optimizer_ema_rng_and_stage_transition(tmp_path, monkey
 
 
 def test_standalone_image_experiment_checks_encoders_before_loading_or_training(tmp_path, monkeypatch):
-    from xdiffusion import experiment
+    from xdiffusion import train
 
     def unexpected_load(*args, **kwargs):
         pytest.fail("expensive dataset loading began before encoder preflight")
 
-    monkeypatch.setattr(experiment, "load_data", unexpected_load)
+    monkeypatch.setattr(train, "load_data", unexpected_load)
     cfg = replace(
         tiny_config(tmp_path / "run", "diffusion"),
         data=DataConfig(task="mnist"),
@@ -101,3 +123,20 @@ def test_field_warm_start_is_a_new_segment_with_explicit_total_budget(tmp_path):
     (first.out_dir / "ckpt.pt").rename(first.out_dir / "archived.pt")
     resumed = main(replace(second, resume=True))
     assert resumed["total_steps"] == 8
+
+
+def test_encoder_preflight_validates_metadata_without_advancing_model_rng(tmp_path):
+    from xdiffusion.quality import FeatureNet
+    from xdiffusion.run import check_encoders
+
+    torch.save(
+        {"model": FeatureNet().state_dict(), "task": "mnist", "data_seed": 1234}, tmp_path / "judge.pt"
+    )
+    cfg = replace(
+        tiny_config(tmp_path / "run", "diffusion"), data=DataConfig(task="mnist"), encoder_dir=tmp_path
+    )
+    state = torch.get_rng_state().clone()
+    check_encoders(cfg)
+    assert torch.equal(state, torch.get_rng_state())
+    with pytest.raises(ValueError, match="encoder is for"):
+        check_encoders(replace(cfg, data=DataConfig(task="fashion")))

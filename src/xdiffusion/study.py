@@ -7,9 +7,9 @@ import tyro
 
 from xdiffusion.common import write_json
 from xdiffusion.data import DataConfig, Task, load_data
-from xdiffusion.experiment import ExperimentConfig, Family
-from xdiffusion.experiment import main as train
 from xdiffusion.models import ModelConfig
+from xdiffusion.run import Family, TrainConfig, check_encoders
+from xdiffusion.train import main as train
 
 
 @dataclass
@@ -32,27 +32,25 @@ def main(cfg: StudyConfig) -> None:
         raise ValueError("at least one family, task, and seed is required")
     if any(len(set(values)) != len(values) for values in (cfg.families, cfg.tasks, cfg.seeds)):
         raise ValueError("families, tasks, and seeds must be unique")
-    # Check all requested output paths before starting expensive training.
+    # Check every output and asset before starting any run.
     for task in cfg.tasks:
-        load_data(DataConfig(task=task, root=cfg.data_root), "val")
         for family in cfg.families:
             for seed in cfg.seeds:
                 if (cfg.out_dir / f"{task}-{family}-seed{seed}" / "config.json").exists():
                     raise FileExistsError("a requested run already exists; choose a fresh --out-dir")
-        if task in ("mnist", "fashion"):
-            for name in ("judge", "priming"):
-                if name == "priming" and "priming" not in cfg.families:
-                    continue
-                path = cfg.encoder_root / task / f"{name}.pt"
-                if not path.exists():
-                    raise FileNotFoundError(
-                        f"missing {path}; run python -m xdiffusion.quality --data.task {task}"
-                    )
+            check_encoders(
+                TrainConfig(
+                    family=family,
+                    data=DataConfig(task=task, root=cfg.data_root),
+                    encoder_dir=cfg.encoder_root / task if task in ("mnist", "fashion") else None,
+                )
+            )
+        load_data(DataConfig(task=task, root=cfg.data_root), "val")
     results = []
     for task in cfg.tasks:
         for family in cfg.families:
             for seed in cfg.seeds:
-                experiment = ExperimentConfig(
+                experiment = TrainConfig(
                     family=family,
                     data=DataConfig(task=task, root=cfg.data_root),
                     model=ModelConfig(width=cfg.width),
@@ -60,6 +58,7 @@ def main(cfg: StudyConfig) -> None:
                     encoder_dir=cfg.encoder_root / task if task in ("mnist", "fashion") else None,
                     steps=cfg.steps,
                     batch_size=cfg.batch_size,
+                    lr=3e-4,
                     samples=cfg.samples,
                     device=cfg.device,
                     seed=seed,

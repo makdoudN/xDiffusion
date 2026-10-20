@@ -121,13 +121,17 @@ are separate; EMA applies to the generator only.
 The GAN generator and VAE decoder have the same topology, with independent
 weights and different objectives. Neither shares weights with the other models.
 The GAN has no encoder, so no direct input reconstruction score is reported.
+Its historical discriminator recipe uses constant LR and weight decay 0.01;
+its generator uses cosine LR and weight decay 1e-4. These are now explicit
+settings, preserved for continuity. See [workflows](workflows.md) for all
+optimizer arguments and loss-component logging.
 
 Sources: [GAN](https://arxiv.org/abs/1406.2661),
 [R1 regularization](https://arxiv.org/abs/1801.04406).
 
 ## What the comparison measures
 
-`study.py` runs explicit `ExperimentConfig`s sequentially. Final EMA weights at
+`study.py` runs explicit `TrainConfig`s through the shared `train.py` loop. Final EMA weights at
 the configured budget are evaluated; intermediate sample metrics do not select
 a checkpoint. Every run logs the full configuration, objective history, model
 size, synchronized training time, generation time, and common sample scores.

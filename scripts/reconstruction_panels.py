@@ -10,7 +10,7 @@ from einops import rearrange
 from xdiffusion.common import get_device, save_plot, write_json
 from xdiffusion.data import load_data
 from xdiffusion.diffusion import Diffusion, DiffusionConfig
-from xdiffusion.experiment import load_experiment
+from xdiffusion.run import load_run
 from xdiffusion.vae import VAE
 
 
@@ -25,7 +25,7 @@ class Config:
 def main(cfg: Config) -> None:
     torch.set_num_threads(4)
     device = get_device(cfg.device)
-    model, experiment, _ = load_experiment(cfg.run / "ckpt.pt", device)
+    model, experiment, _ = load_run(cfg.run / "ckpt.pt", device)
     clean = load_data(experiment.data, "test")[:16].to(device)
     rng = torch.Generator(device=device).manual_seed(0)
     noise = torch.randn(clean.shape, generator=rng, device=device)
@@ -43,7 +43,7 @@ def main(cfg: Config) -> None:
         panels = [clean, noisy.clamp(-1, 1), reconstruction]
         labels = ["original", "noisy at t/T=0.25", "single denoising prediction"]
     elif experiment.family == "priming":
-        primed, _, _ = load_experiment(cfg.run / "primed.pt", device)
+        primed, _, _ = load_run(cfg.run / "primed.pt", device)
         noisy = (1 - experiment.priming_level) * clean + experiment.priming_level * noise
         reconstruction = model(noisy)
         panels = [clean, noisy.clamp(-1, 1), primed(noisy), reconstruction]

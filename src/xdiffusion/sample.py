@@ -1,4 +1,4 @@
-"""Generate points or an image grid from a saved checkpoint."""
+"""Compatibility flags for diffusion sampling; new code uses generate directly."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -8,7 +8,7 @@ import tyro
 from jaxtyping import Float
 from torch import Tensor, nn
 
-from xdiffusion.common import get_device, load_checkpoint, save_plot
+from xdiffusion.common import get_device
 from xdiffusion.diffusion import Diffusion, Sampler
 
 
@@ -29,13 +29,21 @@ class SamplingConfig:
 def draw_samples(
     model: nn.Module, diffusion: Diffusion, shape: tuple[int, ...], cfg: SamplingConfig
 ) -> Float[Tensor, " sample *shape"]:
-    rng = torch.Generator(device=diffusion.alpha_bar.device).manual_seed(cfg.seed)
-    batches = []
-    for start in range(0, cfg.samples, cfg.batch_size):
-        n = min(cfg.batch_size, cfg.samples - start)
-        batch = diffusion.sample(model, (n, *shape), rng, cfg.sampler, cfg.steps, clip=len(shape) == 3)
-        batches.append(batch.cpu())
-    return torch.cat(batches)
+    from xdiffusion.run import TrainConfig, generate
+
+    return generate(
+        model,
+        TrainConfig(
+            diffusion_steps=diffusion.cfg.steps,
+            prediction=diffusion.cfg.prediction,
+            samples=cfg.samples,
+            sample_batch_size=cfg.batch_size,
+            sample_seed=cfg.seed,
+            sampler=cfg.sampler,
+            sampling_steps=cfg.steps or diffusion.cfg.steps,
+        ),
+        shape,
+    )
 
 
 @dataclass
@@ -48,13 +56,25 @@ class SampleConfig:
 
 
 def main(cfg: SampleConfig) -> None:
-    torch.set_num_threads(cfg.threads)
-    model, diffusion, checkpoint = load_checkpoint(cfg.checkpoint, get_device(cfg.device))
-    samples = draw_samples(model, diffusion, tuple(checkpoint["shape"]), cfg.sampling)
-    cfg.out_dir.mkdir(parents=True, exist_ok=True)
-    torch.save(samples, cfg.out_dir / "samples.pt")
-    save_plot(samples, cfg.out_dir / "samples.png")
-    print(f"saved {len(samples)} samples to {cfg.out_dir}")
+    from xdiffusion.generate import GenerateConfig
+    from xdiffusion.generate import main as generate
+    from xdiffusion.run import load_run
+
+    _, run, _ = load_run(cfg.checkpoint, get_device(cfg.device))
+    generate(
+        GenerateConfig(
+            checkpoint=cfg.checkpoint,
+            out_dir=cfg.out_dir,
+            device=cfg.device,
+            threads=cfg.threads,
+            samples=cfg.sampling.samples,
+            batch_size=cfg.sampling.batch_size,
+            seed=cfg.sampling.seed,
+            sampler=cfg.sampling.sampler,
+            sampling_steps=cfg.sampling.steps or run.diffusion_steps,
+            evaluate=False,
+        )
+    )
 
 
 if __name__ == "__main__":

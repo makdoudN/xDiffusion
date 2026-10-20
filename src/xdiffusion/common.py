@@ -10,7 +10,6 @@ from jaxtyping import Float
 from torch import Tensor, nn
 
 from xdiffusion.diffusion import Diffusion, DiffusionConfig
-from xdiffusion.models import ModelConfig, make_model
 
 
 def get_device(name: str) -> torch.device:
@@ -31,12 +30,13 @@ def write_json(path: Path, value: object) -> None:
 
 
 def load_checkpoint(path: Path, device: torch.device) -> tuple[nn.Module, Diffusion, dict]:
+    from xdiffusion.run import load_run
+
+    model, cfg, shape = load_run(path, device)
+    if cfg.family != "diffusion":
+        raise ValueError("this compatibility loader is diffusion-only; use run.load_run")
     checkpoint = torch.load(path, map_location=device, weights_only=True)
-    config = {"architecture": "tiny", **checkpoint["model_config"]}
-    model = make_model(tuple(checkpoint["shape"]), ModelConfig(**config)).to(device)
-    model.load_state_dict(checkpoint["model"])
-    diffusion = Diffusion(DiffusionConfig(**checkpoint["diffusion_config"])).to(device)
-    return model.eval(), diffusion, checkpoint
+    return model, Diffusion(DiffusionConfig(cfg.diffusion_steps, cfg.prediction)).to(device), checkpoint
 
 
 def save_plot(

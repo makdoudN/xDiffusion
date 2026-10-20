@@ -8,13 +8,10 @@ import tyro
 
 
 def print_results(results: list[dict]) -> None:
-    print(
-        f"{'task':13} {'seed':>4} {'params':>9} {'noise MSE':>10} "
-        f"{'SWD':>9} {'ref SWD':>9} {'train/s':>10} {'gen/s':>9}"
-    )
+    print(f"{'task':13} {'seed':>4} {'params':>9} {'SWD':>9} {'ref SWD':>9} {'train/s':>10} {'gen/s':>9}")
     for r in results:
         print(
-            f"{r['task']:13} {r['seed']:4} {r['params']:9,} {r['noise_mse']:10.4f} "
+            f"{r['task']:13} {r['seed']:4} {r['params']:9,} "
             f"{r['swd']:9.4f} {r['reference_swd']:9.4f} {r['train_examples_per_s']:10.0f} "
             f"{r['samples_per_s']:9.1f}"
         )

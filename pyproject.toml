@@ -1,7 +1,7 @@
 [project]
 name = "xdiffusion"
 version = "0.1.0"
-description = "Small, readable diffusion models, from 2D points to CIFAR-10."
+description = "Small, readable generative models, from 2D points to images."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [

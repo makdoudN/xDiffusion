@@ -142,7 +142,13 @@ mistaking a continuous blurry ring for eight concentrated modes.
 
 ## Reproduce
 
+These results use [revision b20fd77](https://github.com/makdoudN/xDiffusion/tree/b20fd77).
+The current consolidated CLI has different defaults. Reproduce this historical
+recipe in a separate checkout; all measured numbers and artifacts below remain unchanged.
+
 ```bash
+git worktree add ../xDiffusion-comparison b20fd77
+cd ../xDiffusion-comparison
 uv sync --locked
 uv run -m xdiffusion.data --task mnist
 uv run -m xdiffusion.study --tasks mnist --steps 10000 \

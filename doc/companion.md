@@ -93,9 +93,11 @@ fixes train/validation/test membership across model seeds. Validation uses its
 own generator for time and noise, so evaluating more often does not consume
 the training random stream. CUDA kernels may still be nondeterministic.
 
-Checkpoint selection asks whether EMA weights predict validation noise well.
-Sampling quality asks whether generated samples resemble held-out data. These
-questions differ; a lower noise MSE need not produce the best-looking grid.
+The consolidated trainer evaluates final EMA weights at the configured budget.
+The original archived baseline instead selected checkpoints using validation
+noise MSE. Noise prediction and generated sample quality answer different
+questions; a lower noise MSE need not produce the best-looking grid. See the
+[workflow guide](workflows.md) for current commands and historical compatibility.
 
 SWD projects both equal-size sample sets onto fixed unit directions. In one
 dimension, sorting provides the optimal matching for Wasserstein-1 distance.

@@ -10,8 +10,10 @@ from einops import rearrange
 
 from xdiffusion.common import get_device, save_plot, write_json
 from xdiffusion.data import load_data
-from xdiffusion.experiment import generate, load_experiment, score_samples
+from xdiffusion.diffusion import Diffusion, DiffusionConfig, Sampler
+from xdiffusion.metrics import noise_mse
 from xdiffusion.quality import accuracy, load_encoder, load_labels
+from xdiffusion.run import generate, load_run, score_samples
 from xdiffusion.vae import VAE
 
 
@@ -24,23 +26,56 @@ class GenerateConfig:
     seed: int = 0
     split: Literal["val", "test"] = "test"
     device: str = "auto"
+    evaluate: bool = True  # False writes samples without loading a reference dataset
+    sampler: Sampler | None = None  # diffusion-only override; otherwise use the checkpoint
+    sampling_steps: int | None = None
+    threads: int = 4
+
+    def __post_init__(self):
+        if self.samples < 2 or min(self.batch_size, self.threads) < 1:
+            raise ValueError("samples must be >= 2; batch size and threads must be positive")
 
 
 @torch.no_grad()
 def main(cfg: GenerateConfig) -> None:
-    torch.set_num_threads(4)
+    torch.set_num_threads(cfg.threads)
     device = get_device(cfg.device)
-    model, experiment, shape = load_experiment(cfg.checkpoint, device)
+    model, experiment, shape = load_run(cfg.checkpoint, device, require_data=cfg.evaluate)
     experiment = replace(
-        experiment, samples=cfg.samples, sample_batch_size=cfg.batch_size, sample_seed=cfg.seed
+        experiment,
+        samples=cfg.samples,
+        sample_batch_size=cfg.batch_size,
+        sample_seed=cfg.seed,
+        sampler=cfg.sampler or experiment.sampler,
+        sampling_steps=cfg.sampling_steps if cfg.sampling_steps is not None else experiment.sampling_steps,
     )
+    if experiment.family != "diffusion" and (cfg.sampler is not None or cfg.sampling_steps is not None):
+        raise ValueError("sampler overrides apply only to diffusion checkpoints")
+    real = load_data(experiment.data, cfg.split) if cfg.evaluate else None
+    if real is not None and len(real) < 2 * cfg.samples:
+        raise ValueError("evaluation needs two reference sets as large as the sample set")
     samples = generate(model, experiment, shape)
-    real = load_data(experiment.data, cfg.split)
-    scores = score_samples(samples, real, experiment, device)
-    scores.update(split=cfg.split, checkpoint=str(cfg.checkpoint), family=experiment.family)
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
     torch.save(samples, cfg.out_dir / "samples.pt")
-    save_plot(samples, cfg.out_dir / "samples.png", real[: cfg.samples])
+    save_plot(samples, cfg.out_dir / "samples.png", real[: cfg.samples] if real is not None else None)
+    if real is None:
+        return
+    scores = score_samples(samples, real, experiment, device)
+    scores.update(
+        split=cfg.split,
+        checkpoint=str(cfg.checkpoint),
+        family=experiment.family,
+        sample_count=cfg.samples,
+        sampling_seed=cfg.seed,
+        sampling_batch_size=cfg.batch_size,
+    )
+    if experiment.family == "diffusion":
+        diffusion = Diffusion(DiffusionConfig(experiment.diffusion_steps, experiment.prediction)).to(device)
+        scores.update(
+            sampler=experiment.sampler,
+            sampling_steps=experiment.sampling_steps,
+            noise_mse=noise_mse(model, diffusion, real[: cfg.samples], cfg.batch_size, cfg.seed),
+        )
     if isinstance(model, VAE):
         originals = real[: cfg.samples]
         reconstructions = torch.cat(

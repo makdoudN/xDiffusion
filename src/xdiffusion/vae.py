@@ -82,12 +82,12 @@ class VAE(nn.Module):
         return self.decoder(self.encode(x)[0])
 
 
-def vae_loss(
+def vae_terms(
     model: VAE,
     clean: Float[Tensor, " batch *shape"],
     noise: Float[Tensor, " batch latent"],
     beta: float = 1.0,
-) -> Float[Tensor, ""]:
+) -> tuple[Float[Tensor, ""], dict[str, Tensor]]:
     output, mean, log_variance = model(clean, noise)
     if clean.ndim == 4:
         # Bernoulli pixel likelihood proxy: sum features, then average examples.
@@ -98,4 +98,13 @@ def vae_loss(
         # A fixed Gaussian decoder with standard deviation 0.1 in coordinate units.
         reconstruction = (output - clean).square().sum(-1).mean() / (2 * 0.1**2)
     kl = -0.5 * (1 + log_variance - mean.square() - log_variance.exp()).sum(-1).mean()
-    return reconstruction + beta * kl
+    return reconstruction + beta * kl, {"reconstruction_nll": reconstruction, "kl": kl}
+
+
+def vae_loss(
+    model: VAE,
+    clean: Float[Tensor, " batch *shape"],
+    noise: Float[Tensor, " batch latent"],
+    beta: float = 1.0,
+) -> Float[Tensor, ""]:
+    return vae_terms(model, clean, noise, beta)[0]
