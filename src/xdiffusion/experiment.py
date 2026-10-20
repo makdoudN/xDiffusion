@@ -192,6 +192,14 @@ def main(cfg: ExperimentConfig) -> dict:
         raise FileExistsError(f"run already exists: {cfg.out_dir}; choose a new --out-dir")
     torch.manual_seed(cfg.seed)
     device = get_device(cfg.device)
+    if cfg.encoder_dir is not None and cfg.data.task in ("mnist", "fashion"):
+        required = ["judge.pt", "priming.pt"] if cfg.family == "priming" else ["judge.pt"]
+        for filename in required:
+            if not (cfg.encoder_dir / filename).is_file():
+                raise FileNotFoundError(
+                    f"missing {cfg.encoder_dir / filename}; train encoders with xdiffusion.quality "
+                    "or provide --encoder-dir before starting this experiment"
+                )
     train, val = load_data(cfg.data), load_data(cfg.data, "val")
     if 2 * cfg.samples > len(val):
         raise ValueError("validation data must contain at least 2 * samples")

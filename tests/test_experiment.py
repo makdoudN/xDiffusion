@@ -72,3 +72,19 @@ def test_resume_restores_optimizer_ema_rng_and_stage_transition(tmp_path, monkey
     torch.testing.assert_close(
         torch.load(cfg.out_dir / "samples.pt", weights_only=True), original, atol=0, rtol=0
     )
+
+
+def test_standalone_image_experiment_checks_encoders_before_loading_or_training(tmp_path, monkeypatch):
+    from xdiffusion import experiment
+
+    def unexpected_load(*args, **kwargs):
+        pytest.fail("expensive dataset loading began before encoder preflight")
+
+    monkeypatch.setattr(experiment, "load_data", unexpected_load)
+    cfg = replace(
+        tiny_config(tmp_path / "run", "diffusion"),
+        data=DataConfig(task="mnist"),
+        encoder_dir=tmp_path / "missing",
+    )
+    with pytest.raises(FileNotFoundError, match="provide --encoder-dir"):
+        main(cfg)
