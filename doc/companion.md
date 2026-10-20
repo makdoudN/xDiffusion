@@ -1,5 +1,9 @@
 # From points to pixels
 
+This companion starts with the epsilon-prediction baseline. The
+[family guide](families.md) covers v prediction, flow matching, Priming, VAE,
+GAN, and the newer comparison protocol.
+
 A diffusion model learns to remove noise. The data can be a pair of coordinates
 or thousands of pixel intensities; the forward process and training objective
 are the same. Only the denoiser changes.
@@ -28,9 +32,11 @@ This is the simple noise-prediction objective, not the full variational bound.
 
 For points, an MLP concatenates coordinates and time features, then runs
 residual hidden blocks. For images, a U-Net adds projected time features to
-convolutional residual blocks. It saves a full-resolution feature map, processes
-a half-resolution representation, upsamples, and concatenates the saved map.
-The output always has the input's shape.
+convolutional residual blocks. The current image backbone visits full, half,
+and quarter resolution, then upsamples with saved skip features. Its bottleneck
+has context over a complete MNIST image. The original two-resolution network
+is retained as `model.architecture=tiny` for the old baselines. Both return
+the input's shape.
 
 The point MLP blends its learned output with the input: `t*x + (1-t)*network`.
 At t=1 the input is almost pure noise, so epsilon ≈ x. Enforcing this identity

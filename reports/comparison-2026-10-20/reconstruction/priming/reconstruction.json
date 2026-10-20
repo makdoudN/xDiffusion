@@ -1,0 +1,12 @@
+{
+  "family": "priming",
+  "split": "test",
+  "panel_order": [
+    "original",
+    "corrupted at s=0.8",
+    "stage-1 denoising",
+    "after distributional post-training"
+  ],
+  "mse_01": 0.07319080084562302,
+  "meaning": "denoising with informative corrupted input; not unconditional generation"
+}

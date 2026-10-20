@@ -1,0 +1,23 @@
+{
+  "src/xdiffusion/__init__.py": "e9d3c4841f6adc47228597a26964e67131248432db836eb0a785698e4f0eb63f",
+  "src/xdiffusion/benchmark.py": "d41c0c7b5e4e93a85d045fd7fb82b86402552b1510311fc0a05f821948692459",
+  "src/xdiffusion/common.py": "f3edd553e93a69b605930c89ce6ffa25eb5bcdf1a9fd98aa5261580cef79493f",
+  "src/xdiffusion/compare.py": "ecc6c9b2e9281112df73e93deee4086d0319ab2c452b1593b8c048cae33f987f",
+  "src/xdiffusion/data.py": "1035fb0d97525ae0fb0387d6162d7301c358de72401fc50c8ecdfaae7765da44",
+  "src/xdiffusion/diffusion.py": "28e93da1565a362bc1ac192c1a9a703d515d42da0070d1abeb72e703a1a82749",
+  "src/xdiffusion/evaluate.py": "32dd7e007c8e7414a52dc45462aa5719eb8aa45d57ad9c0f5f76616fb04f5bf4",
+  "src/xdiffusion/experiment.py": "e5067e917d86cb4203344c5379399fdcb458faf8075e17fac01cb66d83cf7fc9",
+  "src/xdiffusion/flow.py": "fe945fded36627c7b528eadae50969a4c06617dd6e148da43ba89a2d39f7cf93",
+  "src/xdiffusion/gan.py": "fc2511460d0bfe036b08dfe4eebd9af4b06033ac1dd4b0338117fd03d660c896",
+  "src/xdiffusion/generate.py": "035714fb5827eb3e00c731138dfca546da6b7067661ed2ac181751a948d21ac5",
+  "src/xdiffusion/metrics.py": "f3e1c75f3b90815ce5229f304cad125af76a2a7e45b2efc06a544d2aafee443b",
+  "src/xdiffusion/models.py": "add9e1f58abac269903c519113505f2c9e9eef4676ecd19ef36889522804b81e",
+  "src/xdiffusion/priming.py": "adcf6f56a70bb9115d86072eb8766d9dabfe7d951cb99934a1c8864f60e2e4c5",
+  "src/xdiffusion/quality.py": "dee0a1e6f4915af4c0441f80d5d0739795c0f6f0d8b391e70007c5a5ca81a967",
+  "src/xdiffusion/sample.py": "df10b7db2d522aa366dc198eee396b55aef72ee9802fa754e0f21258079db8f3",
+  "src/xdiffusion/study.py": "49ed95122a7dff3951aa6ad2994836fa1accaeb157b1cf356e2ce03e8419bd41",
+  "src/xdiffusion/train.py": "7f4586648433d1f2cbca03947450e680850d09704ef5921b3c59ebadbce03596",
+  "src/xdiffusion/vae.py": "bb27633516d9454daae59c58a0c0ffbb5f4fddf2666cb1da562ac7e2efce6f7b",
+  "pyproject.toml": "cc230692936f8cf069cd67cb3da62186bc8ffcb10925e3bba78a7789a1f572c5",
+  "uv.lock": "5e0189010d5be2cd92684c545cf889bdf5bd6e183ad44d2c5fca2ee1fd360066"
+}

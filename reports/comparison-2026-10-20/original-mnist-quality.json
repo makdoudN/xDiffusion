@@ -1,0 +1,18 @@
+{
+  "feature_fd": 287.5387132487076,
+  "confident_fraction": 0.427734375,
+  "class_counts": [
+    23,
+    25,
+    121,
+    42,
+    59,
+    60,
+    28,
+    68,
+    58,
+    28
+  ],
+  "class_entropy": 2.1658010482788086,
+  "real_confident_fraction": 0.966796875
+}

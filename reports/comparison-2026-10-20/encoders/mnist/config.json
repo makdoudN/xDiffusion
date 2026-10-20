@@ -1,0 +1,14 @@
+{
+  "data": {
+    "task": "mnist",
+    "root": "data",
+    "train_size": 20000,
+    "val_size": 4096,
+    "seed": 1234
+  },
+  "out_dir": "out/encoders/mnist",
+  "steps": 2500,
+  "batch_size": 128,
+  "device": "auto",
+  "threads": 4
+}

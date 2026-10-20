@@ -1,0 +1,10 @@
+{
+  "family": "vae",
+  "split": "test",
+  "panel_order": [
+    "original",
+    "posterior-mean reconstruction"
+  ],
+  "mse_01": 0.005866264924407005,
+  "meaning": "VAE compression"
+}

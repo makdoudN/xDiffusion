@@ -5,6 +5,7 @@ fails for the original README's undertrained samples; it is not a universal
 perceptual metric or a substitute for a human looking at the output.
 """
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,6 +34,13 @@ def main(cfg: Config) -> None:
     judge = load_encoder(cfg.judge, get_device(cfg.device))
     scores = image_scores(judge, real, samples)
     scores["real_confident_fraction"] = image_scores(judge, real, real)["confident_fraction"]
+    scores.update(
+        samples_path=str(cfg.samples),
+        samples_sha256=hashlib.sha256(cfg.samples.read_bytes()).hexdigest(),
+        evaluated_samples=len(samples),
+        minimum_confident_fraction=cfg.minimum_confident_fraction,
+        passed=scores["confident_fraction"] >= cfg.minimum_confident_fraction,
+    )
     write_json(cfg.report, scores)
     print(scores)
     assert scores["confident_fraction"] >= cfg.minimum_confident_fraction, (

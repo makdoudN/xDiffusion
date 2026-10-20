@@ -4,6 +4,7 @@ The feature distance here is dataset-specific, not Inception FID. Classifier
 confidence is a diagnostic, not a certificate that a generated image is good.
 """
 
+import json
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
@@ -73,10 +74,18 @@ def accuracy(
     return correct / len(data)
 
 
-def load_encoder(path: Path, device: torch.device, task: str | None = None) -> FeatureNet:
+def load_encoder(
+    path: Path, device: torch.device, task: str | None = None, data_seed: int | None = None
+) -> FeatureNet:
     checkpoint = torch.load(path, map_location=device, weights_only=True)
     if task is not None and checkpoint["task"] != task:
         raise ValueError(f"encoder is for {checkpoint['task']}, requested {task}")
+    if data_seed is not None:
+        stored_seed = checkpoint.get("data_seed")
+        if stored_seed is None and (path.parent / "config.json").exists():
+            stored_seed = json.loads((path.parent / "config.json").read_text())["data"]["seed"]
+        if stored_seed != data_seed:
+            raise ValueError("encoder training split differs; regenerate encoders with the same data seed")
     model = FeatureNet().to(device)
     model.load_state_dict(checkpoint["model"])
     return model.eval().requires_grad_(False)
@@ -156,7 +165,8 @@ def main(cfg: QualityConfig) -> None:
         model.eval()
         score = accuracy(model, val, val_labels)
         torch.save(
-            {"model": model.state_dict(), "task": cfg.data.task, "seed": seed}, cfg.out_dir / f"{name}.pt"
+            {"model": model.state_dict(), "task": cfg.data.task, "seed": seed, "data_seed": cfg.data.seed},
+            cfg.out_dir / f"{name}.pt",
         )
         results[name] = {"seed": seed, "val_accuracy": score}
         print(f"{name} validation accuracy {score:.4%}", flush=True)

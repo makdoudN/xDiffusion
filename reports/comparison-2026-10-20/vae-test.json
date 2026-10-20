@@ -1,0 +1,28 @@
+{
+  "swd": 0.09834221005439758,
+  "reference_swd": 0.027893416583538055,
+  "feature_fd": 390.48446802351395,
+  "confident_fraction": 0.3876953125,
+  "class_counts": [
+    72,
+    104,
+    133,
+    129,
+    92,
+    142,
+    64,
+    148,
+    57,
+    83
+  ],
+  "class_entropy": 2.2527856826782227,
+  "reference_feature_fd": 12.77931154428552,
+  "split": "test",
+  "checkpoint": "out/comparison-mnist/mnist-vae-seed0/ckpt.pt",
+  "family": "vae",
+  "reconstruction_count": 1024,
+  "reconstruction_mse": 0.025832094252109528,
+  "reconstruction_mse_01": 0.006458023563027382,
+  "original_label_accuracy": 0.984375,
+  "reconstruction_label_accuracy": 0.9697265625
+}

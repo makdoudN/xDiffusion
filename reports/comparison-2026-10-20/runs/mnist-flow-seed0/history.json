@@ -1,0 +1,102 @@
+[
+  {
+    "step": 500,
+    "objective": 0.2279140204191208,
+    "stage": "train"
+  },
+  {
+    "step": 1000,
+    "objective": 0.1845855712890625,
+    "stage": "train"
+  },
+  {
+    "step": 1500,
+    "objective": 0.2052258998155594,
+    "stage": "train"
+  },
+  {
+    "step": 2000,
+    "objective": 0.17963683605194092,
+    "stage": "train"
+  },
+  {
+    "step": 2500,
+    "objective": 0.21287889778614044,
+    "stage": "train"
+  },
+  {
+    "step": 3000,
+    "objective": 0.18196722865104675,
+    "stage": "train"
+  },
+  {
+    "step": 3500,
+    "objective": 0.17910712957382202,
+    "stage": "train"
+  },
+  {
+    "step": 4000,
+    "objective": 0.19807030260562897,
+    "stage": "train"
+  },
+  {
+    "step": 4500,
+    "objective": 0.17648416757583618,
+    "stage": "train"
+  },
+  {
+    "step": 5000,
+    "objective": 0.178247332572937,
+    "stage": "train"
+  },
+  {
+    "step": 5500,
+    "objective": 0.18197505176067352,
+    "stage": "train"
+  },
+  {
+    "step": 6000,
+    "objective": 0.1670309603214264,
+    "stage": "train"
+  },
+  {
+    "step": 6500,
+    "objective": 0.16742807626724243,
+    "stage": "train"
+  },
+  {
+    "step": 7000,
+    "objective": 0.18171383440494537,
+    "stage": "train"
+  },
+  {
+    "step": 7500,
+    "objective": 0.17269591987133026,
+    "stage": "train"
+  },
+  {
+    "step": 8000,
+    "objective": 0.17651915550231934,
+    "stage": "train"
+  },
+  {
+    "step": 8500,
+    "objective": 0.17286042869091034,
+    "stage": "train"
+  },
+  {
+    "step": 9000,
+    "objective": 0.1714659035205841,
+    "stage": "train"
+  },
+  {
+    "step": 9500,
+    "objective": 0.18009746074676514,
+    "stage": "train"
+  },
+  {
+    "step": 10000,
+    "objective": 0.15358737111091614,
+    "stage": "train"
+  }
+]

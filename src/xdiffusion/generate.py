@@ -11,6 +11,7 @@ from einops import rearrange
 from xdiffusion.common import get_device, save_plot, write_json
 from xdiffusion.data import load_data
 from xdiffusion.experiment import generate, load_experiment, score_samples
+from xdiffusion.quality import accuracy, load_encoder, load_labels
 from xdiffusion.vae import VAE
 
 
@@ -53,6 +54,13 @@ def main(cfg: GenerateConfig) -> None:
         scores["reconstruction_mse"] = (reconstructions - originals).square().mean().item()
         if len(shape) == 3:
             scores["reconstruction_mse_01"] = scores["reconstruction_mse"] / 4
+        if experiment.encoder_dir is not None and experiment.data.task in ("mnist", "fashion"):
+            judge = load_encoder(
+                experiment.encoder_dir / "judge.pt", device, experiment.data.task, experiment.data.seed
+            )
+            labels = load_labels(experiment.data, cfg.split)[: len(originals)]
+            scores["original_label_accuracy"] = accuracy(judge, originals, labels)
+            scores["reconstruction_label_accuracy"] = accuracy(judge, reconstructions, labels)
         torch.save(
             {"originals": originals, "reconstructions": reconstructions},
             cfg.out_dir / "reconstructions.pt",

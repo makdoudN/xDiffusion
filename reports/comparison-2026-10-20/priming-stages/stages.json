@@ -1,0 +1,50 @@
+[
+  {
+    "swd": 0.21339234709739685,
+    "reference_swd": 0.03766368329524994,
+    "feature_fd": 818.6005625136122,
+    "confident_fraction": 0.361328125,
+    "class_counts": [
+      113,
+      24,
+      98,
+      58,
+      21,
+      88,
+      45,
+      40,
+      10,
+      15
+    ],
+    "class_entropy": 2.0669519901275635,
+    "reference_feature_fd": 27.4671154462294,
+    "stage": "primed",
+    "samples": 512,
+    "device": "cpu",
+    "seed": 0
+  },
+  {
+    "swd": 0.04355434328317642,
+    "reference_swd": 0.03766368329524994,
+    "feature_fd": 51.23251396693013,
+    "confident_fraction": 0.755859375,
+    "class_counts": [
+      53,
+      68,
+      49,
+      34,
+      62,
+      41,
+      50,
+      59,
+      41,
+      55
+    ],
+    "class_entropy": 2.2833991050720215,
+    "reference_feature_fd": 27.4671154462294,
+    "stage": "posttrained",
+    "samples": 512,
+    "device": "cpu",
+    "seed": 0
+  }
+]

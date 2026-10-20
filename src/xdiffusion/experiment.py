@@ -173,7 +173,7 @@ def score_samples(
     if cfg.data.task == "ring8":
         scores.update(ring8_scores(samples))
     if cfg.encoder_dir is not None and cfg.data.task in ("mnist", "fashion"):
-        judge = load_encoder(cfg.encoder_dir / "judge.pt", device, cfg.data.task)
+        judge = load_encoder(cfg.encoder_dir / "judge.pt", device, cfg.data.task, cfg.data.seed)
         scores.update(image_scores(judge, real[:n], samples))
         scores["reference_feature_fd"] = image_scores(judge, real[:n], real[n : 2 * n])["feature_fd"]
     return scores
@@ -210,7 +210,7 @@ def main(cfg: ExperimentConfig) -> dict:
     if cfg.family == "priming" and cfg.data.task in ("mnist", "fashion"):
         if cfg.encoder_dir is None:
             raise ValueError("Priming on real images needs its frozen training encoder")
-        encoder = load_encoder(cfg.encoder_dir / "priming.pt", device, cfg.data.task)
+        encoder = load_encoder(cfg.encoder_dir / "priming.pt", device, cfg.data.task, cfg.data.seed)
         features = FrozenFeatures(encoder, train[:512].to(device))
         feature_scale = 1 / math.sqrt(features(train[:2].to(device)).shape[-1])
 

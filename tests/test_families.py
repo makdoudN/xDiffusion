@@ -5,7 +5,7 @@ from torch import nn
 from xdiffusion.flow import FlowConfig, flow_loss, integrate
 from xdiffusion.gan import discriminator_loss, generator_loss
 from xdiffusion.priming import FrozenFeatures, laplacian_mmd, reconstruction_loss
-from xdiffusion.quality import FeatureNet, frechet_distance
+from xdiffusion.quality import FeatureNet, frechet_distance, load_encoder
 from xdiffusion.vae import VAE, vae_loss
 
 
@@ -119,3 +119,13 @@ def test_vae_elbo_sums_pixels_and_latents_before_averaging_examples():
     # Decoder p(pixel)=0.5 gives 256*log(2); KL(N(ones, I), N(0, I))=1.
     loss = vae_loss(model, torch.zeros(3, 1, 16, 16), torch.zeros(3, 2))
     assert loss.item() == pytest.approx(256 * torch.log(torch.tensor(2.0)).item() + 1, abs=1e-4)
+
+
+def test_encoder_rejects_a_different_task_or_training_split(tmp_path):
+    path = tmp_path / "judge.pt"
+    torch.save({"model": FeatureNet().state_dict(), "task": "mnist", "data_seed": 1234}, path)
+    load_encoder(path, torch.device("cpu"), "mnist", 1234)
+    with pytest.raises(ValueError, match="encoder is for"):
+        load_encoder(path, torch.device("cpu"), "fashion", 1234)
+    with pytest.raises(ValueError, match="training split differs"):
+        load_encoder(path, torch.device("cpu"), "mnist", 42)

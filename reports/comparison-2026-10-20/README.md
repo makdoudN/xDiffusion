@@ -1,0 +1,139 @@
+# Generative-family comparison · 20 October 2026
+
+**Work in progress: the corrected image run or ring8 suite is still incomplete.**
+
+## Protocol
+
+MNIST: one training seed (0), 10,000 updates, batch 64, final EMA weights.
+Priming counts both stages: 5,000 reconstruction and 5,000 distributional
+updates. The common evaluation uses 1,024 generated images, validation data,
+sampling seed 0, and an independent frozen MNIST classifier. The data seed is
+1234. Diffusion in this matched-budget table uses epsilon prediction.
+
+The real-vs-real feature distance is 14.14.
+Feature distance is dataset-specific, **not Inception FID**. Confidence is a
+95%-softmax diagnostic, **not generated-image accuracy**. No image is filtered
+or chosen by score: every grid starts at the first generated sample.
+
+| Family | Feature distance ↓ | Confident fraction | Pixel SWD ↓ | NFE | Train seconds |
+|---|---:|---:|---:|---:|---:|
+| diffusion | 45.59 | 75.6% | 0.0374 | 50 | 265.1 |
+| flow | 30.30 | 81.4% | 0.0296 | 50 | 258.8 |
+| priming | 29.30 | 75.7% | 0.0355 | 1 | 311.7 |
+| vae | 402.08 | 37.9% | 0.0966 | 1 | 37.6 |
+| gan | 99.91 | 60.3% | 0.0357 | 1 | 47.2 |
+
+These are exploratory baselines, not a statistically established ranking.
+Architecture sizes and extra networks differ. Priming uses supervised frozen
+features and an additional encoder-training stage. GAN trains a discriminator;
+VAE trains an encoder. Equal updates do not imply equal compute. Exact costs,
+model sizes, class histograms, and configurations are in [results.json](results.json)
+and the per-run folders. The GAN baseline retains a constant discriminator LR
+while its generator LR decays, as recorded by the implementation.
+
+## Qualitative comparison
+
+### Diffusion · 10,000 updates
+
+![diffusion generated samples](runs/mnist-diffusion-seed0/samples.png)
+
+### Flow · 10,000 updates
+
+![flow generated samples](runs/mnist-flow-seed0/samples.png)
+
+### Priming · 10,000 updates
+
+![priming generated samples](runs/mnist-priming-seed0/samples.png)
+
+### Vae · 10,000 updates
+
+![vae generated samples](runs/mnist-vae-seed0/samples.png)
+
+### Gan · 10,000 updates
+
+![gan generated samples](runs/mnist-gan-seed0/samples.png)
+
+## Quality investigation
+
+The original 5,000-step tiny diffusion model had feature distance 287.54 and
+42.8% confident samples. Keeping its weights fixed, 200-step DDIM reached
+44.1%, and 200-step DDPM reached 45.3%; changing the sampler did little.
+Training that same tiny architecture for 20,000 updates reached 49.0%.
+See [the sampler controls](sampler-ablation/results.json) and
+[the longer tiny run](tiny20k-quality.json).
+
+The larger three-resolution backbone improves context and capacity. In the
+10,000-step controlled parameterization comparison, epsilon and v prediction
+share the same backbone, budget, data, and optimizer recipe. Neither initial
+run reached the predeclared 90% confidence diagnostic. The larger 50,000-step
+v run therefore tests additional training; it is **outside** the fixed-budget
+family comparison and must not be used to claim a matched-budget win.
+
+## Reconstruction and denoising
+
+Adjacent VAE images are original test inputs followed by posterior-mean
+reconstructions. The generation table above instead uses fresh prior latents.
+The full VAE reconstruction evaluation covers 1,024 test inputs;
+[vae-test.json](vae-test.json) records counts and errors. The 16-image panels
+below are illustrative and their pixel errors are not a cross-family ranking:
+VAE compression, diffusion denoising at t/T=0.25, and Priming denoising at s=0.8
+have different input information and objectives. GAN has no encoder. A flow
+ODE cycle would test numerical inversion, not learned reconstruction quality.
+
+![VAE original/reconstruction pairs](reconstruction/vae/reconstruction.png)
+
+Diffusion panel order: original, noisy input, clean prediction.
+
+![Diffusion denoising](reconstruction/diffusion/reconstruction.png)
+
+Priming panel order: original, corrupted input, reconstruction-only output,
+post-trained output. Post-training optimizes a distribution, not paired MSE.
+
+![Priming denoising](reconstruction/priming/reconstruction.png)
+
+## Priming stage ablation
+
+Both stages below use the same 512 CPU-generated noise tensors, seed 0, and
+independent evaluation features. See [raw stage scores](priming-stages/stages.json).
+These scores have a different sampling count/device from the main table.
+Reconstruction priming alone does not produce a good one-step generator.
+
+![Reconstruction-only generations](priming-stages/primed.png)
+
+![After distributional post-training](priming-stages/posttrained.png)
+
+## Ring8: concentration and coverage
+
+Three independent training seeds, 5,000 updates and batch 256 per family.
+A point is near a mode when it is within 0.24 of a true center; a mode is
+covered if at least 1% of all generated points land near it. Counts avoid
+mistaking a continuous blurry ring for eight concentrated modes.
+
+| Family | SWD ↓, mean ± sd | Within a mode, mean | Modes covered, min / 8 |
+|---|---:|---:|---:|
+
+## Reproduce
+
+```bash
+uv sync --locked
+uv run -m xdiffusion.data --task mnist
+uv run -m xdiffusion.study --tasks mnist --steps 10000 \
+  --encoder-root reports/comparison-2026-10-20/encoders --out-dir out/comparison-mnist
+uv run -m xdiffusion.experiment --family diffusion --prediction v --steps 10000 \
+  --out-dir out/quality-ablation/v10k
+uv run -m xdiffusion.experiment --family diffusion --prediction v --steps 50000 \
+  --out-dir out/quality-ablation/v50k
+uv run scripts/check_image_quality.py --samples out/quality-ablation/v50k/samples.pt
+uv run -m xdiffusion.study --tasks ring8 --seeds 0 1 2 --steps 5000 \
+  --width 128 --batch-size 256 --out-dir out/comparison-ring8
+```
+
+The standalone experiment command defaults to encoders under `out/encoders`.
+Copy the included `encoders/mnist` folder there, train it with
+`python -m xdiffusion.quality`, or set `--encoder-dir` explicitly. Encoder
+metadata records its training and data seeds and held-out classification score.
+Generator checkpoints and optimizer states remain under local `out/`; the repo
+includes their configurations, learning histories, summaries, and sample grids.
+[source-sha256.json](source-sha256.json) identifies the implementation shipped
+with this report. Training is float32 on a GTX 1080. Timings depend on hardware
+and system load; seed identity across different devices is not promised.

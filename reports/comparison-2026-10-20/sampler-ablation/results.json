@@ -1,0 +1,59 @@
+[
+  {
+    "sampler": "ddim",
+    "steps": 50,
+    "feature_fd": 287.5387132487076,
+    "confident_fraction": 0.427734375,
+    "class_counts": [
+      23,
+      25,
+      121,
+      42,
+      59,
+      60,
+      28,
+      68,
+      58,
+      28
+    ],
+    "class_entropy": 2.1658010482788086
+  },
+  {
+    "sampler": "ddim",
+    "steps": 200,
+    "feature_fd": 285.05687828898454,
+    "confident_fraction": 0.44140625,
+    "class_counts": [
+      24,
+      25,
+      119,
+      43,
+      59,
+      59,
+      26,
+      69,
+      59,
+      29
+    ],
+    "class_entropy": 2.169121503829956
+  },
+  {
+    "sampler": "ddpm",
+    "steps": 200,
+    "feature_fd": 252.08227520205764,
+    "confident_fraction": 0.453125,
+    "class_counts": [
+      32,
+      40,
+      92,
+      34,
+      64,
+      68,
+      37,
+      58,
+      55,
+      32
+    ],
+    "class_entropy": 2.2385764122009277
+  }
+]

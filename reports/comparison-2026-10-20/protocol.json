@@ -1,0 +1,41 @@
+{
+  "families": [
+    "diffusion",
+    "flow",
+    "priming",
+    "vae",
+    "gan"
+  ],
+  "primary_task": "mnist",
+  "training_steps": 10000,
+  "batch_size": 64,
+  "data_seed": 1234,
+  "model_seeds": [
+    0
+  ],
+  "validation_samples": 1024,
+  "sample_seed": 0,
+  "selection": "final EMA at fixed budget",
+  "priming": {
+    "pretrain_steps": 5000,
+    "posttrain_steps": 5000,
+    "noise_level": 0.8,
+    "distributional_loss": "Laplacian MMD stop-gradient surrogate",
+    "training_encoder": "MNIST CNN seed 314; frozen multiscale features",
+    "evaluation_encoder": "independently trained MNIST CNN seed 42"
+  },
+  "metrics": [
+    "pixel SWD",
+    "MNIST feature Frechet distance",
+    "classifier confidence diagnostic",
+    "class histogram",
+    "generation speed"
+  ],
+  "limitations": [
+    "one training seed on MNIST",
+    "matched update budget is not matched FLOPs",
+    "Priming has supervised frozen feature-encoder setup cost",
+    "dataset-specific feature metric is not Inception FID",
+    "classifier confidence is not ground-truth sample accuracy"
+  ]
+}

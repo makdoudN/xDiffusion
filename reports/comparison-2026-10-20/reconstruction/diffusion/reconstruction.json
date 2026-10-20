@@ -1,0 +1,11 @@
+{
+  "family": "diffusion",
+  "split": "test",
+  "panel_order": [
+    "original",
+    "noisy at t/T=0.25",
+    "single denoising prediction"
+  ],
+  "mse_01": 0.002303055953234434,
+  "meaning": "denoising with informative corrupted input; not unconditional generation"
+}
