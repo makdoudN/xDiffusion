@@ -8,6 +8,24 @@ from torch import Tensor, nn
 from xdiffusion.diffusion import Diffusion
 
 
+def ring8_scores(points: Float[Tensor, " sample 2"]) -> dict:
+    """Separate mode coverage from a blurry ring, which projection distance can miss.
+
+    Count points within 3 component standard deviations (0.24) of a center.
+    A mode is covered if at least 1% of all generated points land near it.
+    """
+    angles = torch.arange(8) * torch.pi / 4
+    centers = 1.5 * torch.stack([angles.cos(), angles.sin()], dim=-1)
+    distance, nearest = torch.cdist(points.cpu().float(), centers).min(dim=-1)
+    inside = distance < 0.24
+    counts = nearest[inside].bincount(minlength=8)
+    return {
+        "within_mode_fraction": inside.float().mean().item(),
+        "mode_counts": counts.tolist(),
+        "covered_modes": int((counts >= max(1, len(points) // 100)).sum()),
+    }
+
+
 def sliced_wasserstein(
     x: Float[Tensor, " sample *shape"],
     y: Float[Tensor, " sample *shape"],
@@ -43,5 +61,7 @@ def noise_mse(
         clean = clean.to(device)
         t = torch.randint(1, diffusion.cfg.steps + 1, (len(clean),), device=device, generator=rng)
         noise = torch.randn(clean.shape, device=device, generator=rng)
-        total += diffusion.loss(model, clean, t, noise).item() * len(clean)
+        noisy = diffusion.add_noise(clean, t, noise)
+        predicted = diffusion.predict_noise(model, noisy, t)
+        total += (predicted - noise).square().mean().item() * len(clean)
     return total / len(data)

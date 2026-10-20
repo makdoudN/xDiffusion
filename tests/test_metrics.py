@@ -3,7 +3,7 @@ import torch
 from jaxtyping import TypeCheckError
 
 from xdiffusion.diffusion import Diffusion, DiffusionConfig
-from xdiffusion.metrics import noise_mse, sliced_wasserstein
+from xdiffusion.metrics import noise_mse, ring8_scores, sliced_wasserstein
 from xdiffusion.models import MLP, ModelConfig
 
 
@@ -32,3 +32,13 @@ def test_validation_is_repeatable_preserves_training_rng_and_counts_partial_batc
         noise = torch.randn(batch.shape, generator=rng)
         losses.append(diffusion.loss(model, batch, t, noise).item() * len(batch))
     assert result == pytest.approx(sum(losses) / 19)
+
+
+def test_ring8_metric_catches_wrong_radius_and_mode_collapse():
+    angles = torch.arange(8) * torch.pi / 4
+    centers = 1.5 * torch.stack([angles.cos(), angles.sin()], dim=-1)
+    full = ring8_scores(centers.repeat(16, 1))
+    assert full["within_mode_fraction"] == 1 and full["covered_modes"] == 8
+    collapsed = ring8_scores(centers[:1].repeat(128, 1))
+    assert collapsed["within_mode_fraction"] == 1 and collapsed["covered_modes"] == 1
+    assert ring8_scores(torch.zeros(128, 2))["within_mode_fraction"] == 0

@@ -4,7 +4,7 @@ import math
 import platform
 import time
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 import torch
@@ -57,6 +57,8 @@ def learning_rate(step: int, cfg: TrainConfig) -> float:
 
 
 def main(cfg: TrainConfig) -> dict:
+    if cfg.diffusion.prediction == "v":
+        cfg = replace(cfg, model=replace(cfg.model, identity_boundary=False))
     if (cfg.out_dir / "config.json").exists():
         raise FileExistsError(f"run already exists: {cfg.out_dir}; choose a new --out-dir")
     torch.set_num_threads(cfg.threads)

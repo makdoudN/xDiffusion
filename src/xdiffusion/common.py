@@ -32,7 +32,8 @@ def write_json(path: Path, value: object) -> None:
 
 def load_checkpoint(path: Path, device: torch.device) -> tuple[nn.Module, Diffusion, dict]:
     checkpoint = torch.load(path, map_location=device, weights_only=True)
-    model = make_model(tuple(checkpoint["shape"]), ModelConfig(**checkpoint["model_config"])).to(device)
+    config = {"architecture": "tiny", **checkpoint["model_config"]}
+    model = make_model(tuple(checkpoint["shape"]), ModelConfig(**config)).to(device)
     model.load_state_dict(checkpoint["model"])
     diffusion = Diffusion(DiffusionConfig(**checkpoint["diffusion_config"])).to(device)
     return model.eval(), diffusion, checkpoint
@@ -64,7 +65,8 @@ def save_plot(
         padded = images.new_zeros(rows * columns, *images.shape[1:])
         padded[: len(images)] = images
         grid = rearrange(padded, "(r c) ch h w -> (r h) (c w) ch", r=rows, c=columns)
-        fig, ax = plt.subplots(figsize=(6, 6))
+        aspect = rows * images.shape[-2] / (columns * images.shape[-1])
+        fig, ax = plt.subplots(figsize=(6, max(1.0, 6 * aspect)))
         pixels = grid.numpy()
         ax.imshow(pixels.squeeze(-1) if pixels.shape[-1] == 1 else pixels, cmap="gray", vmin=0, vmax=1)
         ax.axis("off")

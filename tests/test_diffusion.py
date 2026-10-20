@@ -102,3 +102,35 @@ def test_image_sampling_clips_clean_predictions_at_the_last_step(sampler):
     unclipped = diffusion.sample(model, tuple(clean.shape), torch.Generator(), sampler=sampler, clip=False)
     torch.testing.assert_close(clipped, torch.ones_like(clean), atol=1e-5, rtol=0)
     torch.testing.assert_close(unclipped, clean, atol=2e-4, rtol=0)
+
+
+class VOracle(nn.Module):
+    def __init__(self, diffusion, clean):
+        super().__init__()
+        self.diffusion, self.clean = diffusion, clean
+
+    def forward(self, noisy, time):
+        t = (time * self.diffusion.cfg.steps).round().long()
+        a = self.diffusion.alpha_bar[t].reshape(-1, *([1] * (noisy.ndim - 1)))
+        return (a.sqrt() * noisy - self.clean) / (1 - a).sqrt()
+
+
+@pytest.mark.parametrize("shape", [(8, 2), (8, 1, 8, 8)])
+def test_v_objective_and_clean_noise_conversions_match_closed_forms(shape):
+    diffusion = Diffusion(DiffusionConfig(steps=200, prediction="v"))
+    clean, noise = torch.randn(shape), torch.randn(shape)
+    times = torch.tensor([1, 10, 50, 100, 150, 180, 199, 200])
+    noisy = diffusion.add_noise(clean, times, noise)
+    oracle = VOracle(diffusion, clean)
+    assert diffusion.loss(oracle, clean, times, noise).item() < 1e-9
+    torch.testing.assert_close(diffusion.predict_clean(oracle, noisy, times), clean, atol=1e-5, rtol=1e-5)
+    torch.testing.assert_close(diffusion.predict_noise(oracle, noisy, times), noise, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize("sampler,steps", [("ddim", 1), ("ddim", 10), ("ddpm", 200)])
+def test_v_sampling_recovers_clean_data_even_at_the_almost_zero_snr_endpoint(sampler, steps):
+    diffusion = Diffusion(DiffusionConfig(steps=200, prediction="v"))
+    clean = torch.full((8, 2), 0.3)
+    oracle = VOracle(diffusion, clean)
+    result = diffusion.sample(oracle, tuple(clean.shape), torch.Generator(), sampler, steps)
+    torch.testing.assert_close(result, clean, atol=1e-5, rtol=1e-5)

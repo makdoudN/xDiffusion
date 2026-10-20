@@ -1,4 +1,4 @@
-"""One noise-prediction objective; DDPM and deterministic DDIM reverse processes.
+"""Epsilon or v prediction; DDPM and deterministic DDIM reverse processes.
 
 Index 0 is clean data. Indices 1..T are noisy. Models receive t/T in (0, 1].
 The leading batch axis is followed by either coordinates or channel/height/width.
@@ -19,6 +19,7 @@ Sampler = Literal["ddim", "ddpm"]
 @dataclass
 class DiffusionConfig:
     steps: int = 200  # forward noise levels; DDPM uses all of them at sampling time
+    prediction: Literal["epsilon", "v"] = "epsilon"  # v avoids dividing by tiny signal power at sampling
 
 
 class Diffusion(nn.Module):
@@ -52,7 +53,29 @@ class Diffusion(nn.Module):
     ) -> Float[Tensor, ""]:
         noisy = self.add_noise(clean, t, noise)
         prediction = model(noisy, t.float() / self.cfg.steps)
-        return F.mse_loss(prediction, noise)
+        target = noise
+        if self.cfg.prediction == "v":
+            a = self.alpha_bar[t].reshape(-1, *([1] * (clean.ndim - 1)))
+            target = a.sqrt() * noise - (1 - a).sqrt() * clean
+        return F.mse_loss(prediction, target)
+
+    def predict_clean(
+        self, model: nn.Module, noisy: Float[Tensor, " batch *shape"], t: Int[Tensor, " batch"]
+    ) -> Float[Tensor, " batch *shape"]:
+        prediction = model(noisy, t.float() / self.cfg.steps)
+        a = self.alpha_bar[t].reshape(-1, *([1] * (noisy.ndim - 1)))
+        if self.cfg.prediction == "v":
+            return a.sqrt() * noisy - (1 - a).sqrt() * prediction
+        return (noisy - (1 - a).sqrt() * prediction) / a.sqrt()
+
+    def predict_noise(
+        self, model: nn.Module, noisy: Float[Tensor, " batch *shape"], t: Int[Tensor, " batch"]
+    ) -> Float[Tensor, " batch *shape"]:
+        prediction = model(noisy, t.float() / self.cfg.steps)
+        if self.cfg.prediction == "v":
+            a = self.alpha_bar[t].reshape(-1, *([1] * (noisy.ndim - 1)))
+            return (1 - a).sqrt() * noisy + a.sqrt() * prediction
+        return prediction
 
     @torch.no_grad()
     def sample(
@@ -84,8 +107,12 @@ class Diffusion(nn.Module):
         for t, previous in zip(levels[:-1], levels[1:], strict=True):
             a, a_prev = self.alpha_bar[t], self.alpha_bar[previous]
             time = torch.full((shape[0],), t / total, device=device)
-            noise = model(x, time)
-            clean = (x - (1 - a).sqrt() * noise) / a.sqrt()
+            prediction = model(x, time)
+            clean = (
+                a.sqrt() * x - (1 - a).sqrt() * prediction
+                if self.cfg.prediction == "v"
+                else (x - (1 - a).sqrt() * prediction) / a.sqrt()
+            )
             if clip:
                 clean = clean.clamp(-1, 1)
             if sampler == "ddim":

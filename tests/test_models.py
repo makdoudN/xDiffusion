@@ -3,7 +3,7 @@ import torch
 from jaxtyping import TypeCheckError
 
 from xdiffusion.diffusion import Diffusion, DiffusionConfig
-from xdiffusion.models import MLP, ModelConfig, make_model
+from xdiffusion.models import MLP, ModelConfig, TinyUNet, make_model
 
 
 @pytest.mark.parametrize("shape", [(2,), (1, 16, 16), (1, 28, 28), (3, 32, 32)])
@@ -49,3 +49,22 @@ def test_mlp_preserves_the_high_noise_identity_boundary():
     model = MLP(ModelConfig(width=16))
     noise = torch.randn(8, 2)
     torch.testing.assert_close(model(noise, torch.ones(8)), noise)
+
+
+def test_original_checkpoints_still_load_the_tiny_architecture(tmp_path):
+    from xdiffusion.common import load_checkpoint
+
+    original = TinyUNet(ModelConfig(width=16), channels=1).eval()
+    path = tmp_path / "original.pt"
+    torch.save(
+        {
+            "model": original.state_dict(),
+            "shape": (1, 28, 28),
+            "model_config": {"width": 16, "depth": 3, "time_dim": 32},
+            "diffusion_config": {"steps": 200},
+        },
+        path,
+    )
+    loaded, _, _ = load_checkpoint(path, torch.device("cpu"))
+    noisy, time = torch.randn(3, 1, 28, 28), torch.rand(3)
+    torch.testing.assert_close(loaded(noisy, time), original(noisy, time))
