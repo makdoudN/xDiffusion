@@ -88,3 +88,16 @@ def test_standalone_image_experiment_checks_encoders_before_loading_or_training(
     )
     with pytest.raises(FileNotFoundError, match="provide --encoder-dir"):
         main(cfg)
+
+
+def test_field_warm_start_is_a_new_segment_with_explicit_total_budget(tmp_path):
+    first = tiny_config(tmp_path / "first", "flow")
+    main(first)
+    second = replace(first, out_dir=tmp_path / "second", init_checkpoint=first.out_dir / "ckpt.pt")
+    result = main(second)
+    assert result["steps"] == 4 and result["parent_steps"] == 4 and result["total_steps"] == 8
+    state = torch.load(second.out_dir / "ckpt.pt", weights_only=True)
+    assert state["total_steps"] == 8
+    (first.out_dir / "ckpt.pt").rename(first.out_dir / "archived.pt")
+    resumed = main(replace(second, resume=True))
+    assert resumed["total_steps"] == 8

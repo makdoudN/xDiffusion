@@ -1,0 +1,23 @@
+{
+  "feature_fd": 38.89324841698317,
+  "confident_fraction": 0.869140625,
+  "class_counts": [
+    44,
+    43,
+    53,
+    47,
+    42,
+    66,
+    50,
+    55,
+    51,
+    61
+  ],
+  "class_entropy": 2.2922143936157227,
+  "real_confident_fraction": 0.966796875,
+  "samples_path": "out/quality-ablation/v55k/samples.pt",
+  "samples_sha256": "864c9d343fed37ebf10a9a9a2c4badcf205fc665132a673e278d5c64f426b337",
+  "evaluated_samples": 512,
+  "minimum_confident_fraction": 0.9,
+  "passed": false
+}

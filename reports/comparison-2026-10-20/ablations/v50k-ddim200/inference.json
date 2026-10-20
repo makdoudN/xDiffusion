@@ -1,0 +1,43 @@
+{
+  "sampler": "ddim",
+  "sampling_steps": 200,
+  "sample_seed": 0,
+  "sample_count": 1024,
+  "batch_size": 128,
+  "source_checkpoint": "out/quality-ablation/v50k/ckpt.pt",
+  "swd": 0.02706523798406124,
+  "reference_swd": 0.026997413486242294,
+  "feature_fd": 24.369976381204197,
+  "confident_fraction": 0.8857421875,
+  "class_counts": [
+    86,
+    95,
+    107,
+    98,
+    91,
+    107,
+    97,
+    111,
+    111,
+    121
+  ],
+  "class_entropy": 2.297637939453125,
+  "reference_feature_fd": 14.137801689217667,
+  "fixed512": {
+    "feature_fd": 39.572216786537865,
+    "confident_fraction": 0.896484375,
+    "class_counts": [
+      40,
+      46,
+      49,
+      48,
+      43,
+      59,
+      51,
+      58,
+      54,
+      64
+    ],
+    "class_entropy": 2.2928202152252197
+  }
+}

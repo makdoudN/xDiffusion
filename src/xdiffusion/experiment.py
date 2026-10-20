@@ -64,6 +64,7 @@ class ExperimentConfig:
     device: str = "auto"
     threads: int = 4
     resume: bool = False  # resume the same configured budget, not a different LR schedule
+    init_checkpoint: Path | None = None  # warm-start a field model from EMA, with a fresh optimizer
 
     def __post_init__(self):
         if (
@@ -89,6 +90,8 @@ class ExperimentConfig:
             raise ValueError("Priming needs at least one step in each stage")
         if not 1 <= self.sampling_steps <= self.diffusion_steps or self.samples < 2:
             raise ValueError("invalid sampling settings")
+        if self.init_checkpoint is not None and self.family not in ("diffusion", "flow"):
+            raise ValueError("warm starts currently support diffusion and flow field models")
 
 
 def build_model(cfg: ExperimentConfig, shape: tuple[int, ...]) -> nn.Module:
@@ -117,6 +120,7 @@ def config_from_dict(values: dict) -> ExperimentConfig:
             "flow": FlowConfig(**values["flow"]),
             "out_dir": Path(values["out_dir"]),
             "encoder_dir": Path(values["encoder_dir"]) if values["encoder_dir"] is not None else None,
+            "init_checkpoint": Path(values["init_checkpoint"]) if values.get("init_checkpoint") else None,
         }
     )
 
@@ -205,6 +209,17 @@ def main(cfg: ExperimentConfig) -> dict:
         raise ValueError("validation data must contain at least 2 * samples")
     shape = tuple(train.shape[1:])
     model = build_model(cfg, shape).to(device)
+    parent_steps, parent_train_s = 0, 0.0
+    if cfg.init_checkpoint is not None and not cfg.resume:
+        parent = torch.load(cfg.init_checkpoint, map_location=device, weights_only=True)
+        if parent["family"] != cfg.family or tuple(parent["shape"]) != shape:
+            raise ValueError("warm-start family and data shape must match")
+        if cfg.family == "diffusion" and parent["config"].get("prediction", "epsilon") != cfg.prediction:
+            raise ValueError("warm-start prediction target must match")
+        model.load_state_dict(parent["model"])
+        parent_steps = parent.get("total_steps", parent["step"])
+        parent_train_s = parent.get("total_train_s", parent["train_s"])
+        del parent
     ema = deepcopy(model).eval().requires_grad_(False)
     diffusion = Diffusion(DiffusionConfig(cfg.diffusion_steps, cfg.prediction)).to(device)
     betas = (0.5, 0.999) if cfg.family == "gan" else (0.9, 0.999)
@@ -244,6 +259,8 @@ def main(cfg: ExperimentConfig) -> dict:
         data_rng.set_state(state["data_rng"].cpu())
         noise_rng.set_state(state["noise_rng"].cpu())
         history, first_step, train_s = state["history"], state["step"] + 1, state["train_s"]
+        parent_steps = state.get("total_steps", state["step"]) - state["step"]
+        parent_train_s = state.get("total_train_s", state["train_s"]) - state["train_s"]
 
     write_json(cfg.out_dir / "config.json", config)
 
@@ -253,6 +270,8 @@ def main(cfg: ExperimentConfig) -> dict:
             "config": config,
             "shape": shape,
             "step": step,
+            "total_steps": parent_steps + step,
+            "total_train_s": parent_train_s + train_s,
             "model": ema.state_dict(),
             "online": model.state_dict(),
             "optimizer": optimizer.state_dict(),
@@ -368,6 +387,9 @@ def main(cfg: ExperimentConfig) -> dict:
         "data_seed": cfg.data.seed,
         "split": "val",
         "steps": cfg.steps,
+        "parent_steps": parent_steps,
+        "total_steps": parent_steps + cfg.steps,
+        "total_train_s": parent_train_s + train_s,
         "batch_size": cfg.batch_size,
         "samples": cfg.samples,
         "params": sum(p.numel() for p in model.parameters()),

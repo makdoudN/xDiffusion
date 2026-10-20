@@ -52,7 +52,13 @@ MNIST and Fashion-MNIST used the real downloaded datasets.
 
 ## Reproduce
 
+These archived runs use [revision 0ca489a](https://github.com/makdoudN/xDiffusion/tree/0ca489a).
+The current image backbone is larger. Use a separate checkout of that revision
+to reproduce the original architectures and defaults:
+
 ```bash
+git worktree add ../xDiffusion-baseline 0ca489a
+cd ../xDiffusion-baseline
 uv sync --locked
 uv run -m xdiffusion.benchmark --tasks gaussian ring8 moons checkerboard \
   --seeds 0 1 2 --steps 1500 --out-dir out/points

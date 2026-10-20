@@ -135,6 +135,12 @@ size, synchronized training time, generation time, and common sample scores.
 resuming the exact same budget. Changing a budget changes the LR schedule and
 requires a fresh experiment.
 
+Diffusion and flow can initialize a separate phase with `--init-checkpoint`.
+This loads the parent EMA and creates a fresh optimizer; it is different from
+`--resume`. Summaries retain `parent_steps`, `total_steps`, and `total_train_s`.
+The family, data shape, and diffusion prediction target must match. Resuming
+that new phase needs only its own `last.pt`, even if the parent is moved.
+
 Equal update counts and batch sizes are not equal FLOPs. The GAN trains a
 second network. Priming's post-training computes frozen features and generated
 negative references. The VAE trains an encoder that it does not use to generate.

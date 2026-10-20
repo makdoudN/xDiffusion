@@ -1,0 +1,52 @@
+[
+  {
+    "step": 500,
+    "objective": 0.8602242469787598,
+    "stage": "train"
+  },
+  {
+    "step": 1000,
+    "objective": 1.0179730653762817,
+    "stage": "train"
+  },
+  {
+    "step": 1500,
+    "objective": 1.2004656791687012,
+    "stage": "train"
+  },
+  {
+    "step": 2000,
+    "objective": 1.2275828123092651,
+    "stage": "train"
+  },
+  {
+    "step": 2500,
+    "objective": 1.338811993598938,
+    "stage": "train"
+  },
+  {
+    "step": 3000,
+    "objective": 1.3267842531204224,
+    "stage": "train"
+  },
+  {
+    "step": 3500,
+    "objective": 1.1769083738327026,
+    "stage": "train"
+  },
+  {
+    "step": 4000,
+    "objective": 1.8195128440856934,
+    "stage": "train"
+  },
+  {
+    "step": 4500,
+    "objective": 1.4039885997772217,
+    "stage": "train"
+  },
+  {
+    "step": 5000,
+    "objective": 1.294092059135437,
+    "stage": "train"
+  }
+]

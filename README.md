@@ -11,18 +11,29 @@ Five objectives, explicit PyTorch code, and a curriculum from 2D points to image
 
 <!-- current-gallery:start -->
 <table>
-<tr><th>Diffusion</th><th>Flow matching</th><th>Priming</th></tr>
-<tr>
-<td><img src="reports/comparison-2026-10-20/runs/mnist-diffusion-seed0/samples.png" alt="Unfiltered diffusion samples at 10000 training updates" width="280"></td>
-<td><img src="reports/comparison-2026-10-20/runs/mnist-flow-seed0/samples.png" alt="Unfiltered flow samples at 10000 training updates" width="280"></td>
-<td><img src="reports/comparison-2026-10-20/runs/mnist-priming-seed0/samples.png" alt="Unfiltered priming samples at 10000 training updates" width="280"></td>
-</tr>
-<tr><th>VAE</th><th>GAN</th><th>Same data and update budget</th></tr>
-<tr>
-<td><img src="reports/comparison-2026-10-20/runs/mnist-vae-seed0/samples.png" alt="Unfiltered vae samples, including remaining defects" width="280"></td>
-<td><img src="reports/comparison-2026-10-20/runs/mnist-gan-seed0/samples.png" alt="Unfiltered gan samples, including remaining defects" width="280"></td>
-<td>All five models: 10,000 updates, batch 64, seed 0. Raw, unfiltered generations.</td></tr>
+  <tr><th>Diffusion · v prediction · 50,000 updates</th><th>Flow matching · 10,000 updates</th></tr>
+  <tr>
+    <td><img src="reports/comparison-2026-10-20/corrected-v50k/samples.png"
+      alt="Unfiltered samples from the longer v-prediction diffusion run" width="420"></td>
+    <td><img src="reports/comparison-2026-10-20/runs/mnist-flow-seed0/samples.png"
+      alt="Unfiltered flow-matching MNIST samples" width="420"></td>
+  </tr>
 </table>
+<table>
+  <tr><th>Priming · one evaluation</th><th>VAE · one decoder evaluation</th>
+    <th>GAN · one generator evaluation</th></tr>
+  <tr>
+    <td><img src="reports/comparison-2026-10-20/runs/mnist-priming-seed0/samples.png"
+      alt="Unfiltered Priming samples after both training stages" width="280"></td>
+    <td><img src="reports/comparison-2026-10-20/runs/mnist-vae-seed0/samples.png"
+      alt="VAE prior samples, including blurry and malformed examples" width="280"></td>
+    <td><img src="reports/comparison-2026-10-20/runs/mnist-gan-seed0/samples.png"
+      alt="GAN samples, including remaining shape defects" width="280"></td>
+  </tr>
+</table>
+
+The first diffusion gallery has a **larger training budget**. The fixed-budget
+comparison below keeps every family at 10,000 updates.
 <!-- current-gallery:end -->
 
 These galleries show **unconditional generations**, using a fixed sampling seed
@@ -122,6 +133,21 @@ Besides projection distance, ring8 evaluation counts how many samples fall near
 true component centers and how many modes are covered. A blurry continuous ring
 should not pass as eight well-concentrated modes.
 
+<table>
+  <tr><th>Diffusion · ring8</th><th>Priming · ring8</th></tr>
+  <tr>
+    <td><img src="reports/comparison-2026-10-20/runs/ring8-diffusion-seed0/samples.png"
+      alt="Diffusion samples concentrated around the eight reference modes" width="420"></td>
+    <td><img src="reports/comparison-2026-10-20/runs/ring8-priming-seed0/samples.png"
+      alt="Priming samples cover the modes but spread between them" width="420"></td>
+  </tr>
+</table>
+
+Across three seeds, diffusion places **92.4%** of points near the true modes;
+Priming places **35.6%**. Both cover all eight. See the
+[full five-family results](reports/comparison-2026-10-20/README.md#ring8-concentration-and-coverage)
+for means, variation, and the precise coverage rule.
+
 ### Move to images
 
 ```bash
@@ -167,12 +193,17 @@ Fréchet distance uses a small independent MNIST classifier; it is **not Incepti
 FID**. The confidence column measures the fraction of samples with a maximum
 class probability of at least 95%; it is a diagnostic, not generated-image
 accuracy. Inspect the grids and class counts alongside the numbers.
+NFE counts neural-network evaluations per generated sample.
 
 <!-- progress:start -->
-The additional 50,000-update image-quality run and three-seed ring8 comparison are still running. The matched MNIST results below are complete.
+
 <!-- progress:end -->
 
 ## Image quality and reconstruction
+
+<!-- quality-result:start -->
+On the same 512-sample protocol, the longer diffusion run reaches **89.1%** confident samples (original: **42.8%**) and feature distance **43.37** (original: **287.54**). It still **misses the 90% diagnostic target**, and some digits remain malformed. This changes the backbone, prediction target, and training budget; it is a quality investigation, separate from the fixed-budget family comparison.
+<!-- quality-result:end -->
 
 The original README's 5,000-step image samples were undertrained. An independent
 quality check found only **42.8%** confident digits, versus **96.7%** on the real
@@ -194,15 +225,20 @@ It also separates three different questions:
 - **Denoising:** does an informative corrupted input recover its clean target?
 
 <!-- reconstruction-gallery:start -->
-![VAE original/reconstruction pairs](reports/comparison-2026-10-20/reconstruction/vae/reconstruction.png)
+![Held-out VAE original/reconstruction pairs](reports/comparison-2026-10-20/reconstruction/vae/reconstruction.png)
 
-Adjacent pairs: original test input, posterior-mean reconstruction. These differ from samples drawn from the VAE prior.
+Adjacent pairs: original input, posterior-mean reconstruction. The VAE's low
+reconstruction error does not imply equally good samples from its prior; both
+operations are measured separately in the report. Across 1,024 test inputs,
+reconstruction MSE is **0.006458** on [0,1] pixels; the independent judge predicts
+the correct label for **97.0%** of reconstructions (original inputs: **98.4%**).
 <!-- reconstruction-gallery:end -->
 
 The check is runnable against any saved MNIST sample tensor:
 
 ```bash
-uv run scripts/check_image_quality.py --samples path/to/samples.pt
+uv run scripts/check_image_quality.py --samples path/to/samples.pt \
+  --judge reports/comparison-2026-10-20/encoders/mnist/judge.pt
 ```
 
 It uses the independent MNIST judge and a fixed 512-sample comparison. Classifier
@@ -271,6 +307,11 @@ Every family run saves `config.json`, `history.json`, `summary.json`, `samples.p
 weights, optimizer states, and random streams; `--resume` continues the **same**
 configured budget. Priming also saves its reconstruction-stage `primed.pt`.
 Original diffusion-only checkpoints remain inference-only.
+
+For a separate fine-tuning phase, diffusion and flow accept
+`--init-checkpoint path/to/ckpt.pt`: this loads the parent EMA with a fresh
+optimizer. Summaries record the parent budget and total steps/time so the
+additional training stays visible. Use a new output directory.
 
 Synthetic splits use independent data seeds. Image datasets reserve 5,000
 training examples for validation; evaluation defaults to the official test
